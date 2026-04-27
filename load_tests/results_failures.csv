@@ -1,0 +1,9 @@
+Method,Name,Error,Occurrences
+POST,POST /announcements,CatchResponseError('[500] Internal Server Error'),11
+POST,POST /auth/login,CatchResponseError('[500] Internal Server Error'),68
+GET,GET /messages,HTTPError('500 Server Error: Internal Server Error for url: GET /messages'),6
+POST,POST /events,CatchResponseError('[500] Internal Server Error'),2
+GET,GET /events?date_range,HTTPError('500 Server Error: Internal Server Error for url: GET /events?date_range'),8
+GET,GET /events,HTTPError('500 Server Error: Internal Server Error for url: GET /events'),51
+GET,GET /announcements,HTTPError('500 Server Error: Internal Server Error for url: GET /announcements'),55
+GET,GET /users,HTTPError('500 Server Error: Internal Server Error for url: GET /users'),3

@@ -1,13 +1,14 @@
 import uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
-from app.models.user import User, Role
-from app.crud.user import get_user
-from app.services.auth import decode_token
 
-# OAuth2PasswordBearer — в Swagger кнопка "Authorize" открывает форму login/password
+from app.auth.service import decode_token
+from app.db.session import get_db
+from app.users.crud import get_user
+from app.users.model import Role, User
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
@@ -25,11 +26,15 @@ async def get_current_user(
     try:
         user_id = uuid.UUID(payload["sub"])
     except (KeyError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен"
+        )
 
     user = await get_user(db, user_id)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден"
+        )
     return user
 
 
@@ -45,3 +50,6 @@ def require_roles(*roles: Role):
         return current_user
 
     return _check
+
+
+# TODO: написать зависимость принимающую преподы и возвращающая ему группы которые он обучает

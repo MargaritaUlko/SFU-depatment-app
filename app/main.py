@@ -1,24 +1,32 @@
 import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 
-from app.core.config import settings
-from app.db.session import engine
 from app.admin.auth import AdminAuth
 from app.admin.views import (
-    UserAdmin,
-    RefreshTokenAdmin,
-    StreamAdmin,
+    DocumentAdmin,
+    EventAdmin,
     GroupAdmin,
     MessageAdmin,
-    EventAdmin,
-    EventLinkAdmin,
-    DocumentAdmin,
+    RefreshTokenAdmin,
+    StreamAdmin,
+    UserAdmin,
 )
-from app.routers import auth, users, groups, streams, messages, events, documents, schedule, telegram
+from app.announcements.router import router as announcements_router
+from app.attendance.router import router as attendance_router
+from app.auth.router import router as auth_router
+from app.core.config import settings
+from app.db.session import engine
+from app.documents.router import router as documents_router
+from app.events.router import router as events_router
+from app.groups.router import router as groups_router
+from app.messages.router import router as messages_router
+from app.streams.router import router as streams_router
+from app.users.router import router as users_router
 
 
 @asynccontextmanager
@@ -51,7 +59,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Admin panel (/admin) ──────────────────────────────────────────────────────
 admin = Admin(
     app,
     engine,
@@ -67,23 +74,24 @@ admin.add_view(StreamAdmin)
 admin.add_view(GroupAdmin)
 admin.add_view(MessageAdmin)
 admin.add_view(EventAdmin)
-admin.add_view(EventLinkAdmin)
 admin.add_view(DocumentAdmin)
-# ─────────────────────────────────────────────────────────────────────────────
 
-# Раздача загружённых файлов
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+app.mount(
+    "/uploads",
+    StaticFiles(directory=settings.UPLOAD_DIR, check_dir=False),
+    name="uploads",
+)
 
 PREFIX = "/api/v1"
-app.include_router(auth.router, prefix=PREFIX)
-app.include_router(users.router, prefix=PREFIX)
-app.include_router(groups.router, prefix=PREFIX)
-app.include_router(streams.router, prefix=PREFIX)
-app.include_router(messages.router, prefix=PREFIX)
-app.include_router(telegram.router, prefix=PREFIX)
-app.include_router(events.router, prefix=PREFIX)
-app.include_router(documents.router, prefix=PREFIX)
-app.include_router(schedule.router, prefix=PREFIX)
+app.include_router(auth_router, prefix=PREFIX)
+app.include_router(users_router, prefix=PREFIX)
+app.include_router(groups_router, prefix=PREFIX)
+app.include_router(streams_router, prefix=PREFIX)
+app.include_router(messages_router, prefix=PREFIX)
+app.include_router(events_router, prefix=PREFIX)
+app.include_router(documents_router, prefix=PREFIX)
+app.include_router(announcements_router, prefix=PREFIX)
+app.include_router(attendance_router, prefix=PREFIX)
 
 
 @app.get("/health", tags=["health"])

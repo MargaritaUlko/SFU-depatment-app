@@ -1,6 +1,18 @@
 version: "3.9"
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: department_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   db:
     image: postgres:16-alpine
     container_name: department_db
@@ -28,15 +40,57 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dept_user}:${POSTGRES_PASSWORD:-dept_pass}@db:5432/${POSTGRES_DB:-department_db}
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./uploads:/app/uploads
       - ./app:/app/app
     ports:
       - "8000:8000"
+      - "8089:8089"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: department_worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dept_user}:${POSTGRES_PASSWORD:-dept_pass}@db:5432/${POSTGRES_DB:-department_db}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app worker --loglevel=info
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: department_beat
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dept_user}:${POSTGRES_PASSWORD:-dept_pass}@db:5432/${POSTGRES_DB:-department_db}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app beat --loglevel=info
 
 volumes:
   postgres_data:

@@ -2,7 +2,7 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from sqlalchemy import select
 from app.db.session import AsyncSessionLocal
-from app.models.user import User, Role
+from app.users.model import User, Role
 from app.core.security import verify_password
 
 

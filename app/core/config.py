@@ -11,15 +11,13 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 20
 
-    SCHEDULE_CACHE_TTL: int = 3600
-    SCHEDULE_CACHE_SIZE: int = 512
-
     # Поля из .env
     POSTGRES_USER: str = "dept_user"
     POSTGRES_PASSWORD: str = "dept_pass"
     POSTGRES_DB: str = "department_db"
     MAX_BOT_TOKEN: str = ""
     MAX_BOT_API_URL: str = "https://api.max.ru/bot/v1"
+    REDIS_URL: str = "redis://localhost:6379"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
