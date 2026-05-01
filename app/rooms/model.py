@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -12,8 +12,13 @@ class Room(Base, TimestampMixin):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
-    address = Column(String(500), nullable=True)
+    address = Column(String(500), nullable=False)
     capacity = Column(Integer, nullable=True)
+    schedule_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("schedules.id"),
+        nullable=True,
+    )
 
     events = relationship("Event", back_populates="room")
     schedule = relationship("Schedule", backref="room")

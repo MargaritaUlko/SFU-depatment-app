@@ -42,10 +42,10 @@ async def create_announcement(
     user: User,
 ) -> Announcement:
     if user.role == Role.headman:
-        target_group = user.student_profile.group_id
+        AnnouncementCreate.target_group = user.student_profile.group_id
     elif user.role == Role.teacher:
         pass
-    return await create_announcement_(db, data, author_id)
+    return await create_announcement_(db, data)
 
 
 async def get_announcement(db: AsyncSession, ann_id: int) -> Optional[Announcement]:

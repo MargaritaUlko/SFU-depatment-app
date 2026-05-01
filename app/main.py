@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 
+import app.db.models  # noqa
 from app.admin.auth import AdminAuth
 from app.admin.views import (
     DocumentAdmin,
@@ -20,6 +21,7 @@ from app.announcements.router import router as announcements_router
 from app.attendance.router import router as attendance_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
+from app.db.models import *
 from app.db.session import engine
 from app.documents.router import router as documents_router
 from app.events.router import router as events_router

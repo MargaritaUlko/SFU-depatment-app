@@ -5,7 +5,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin
-from app.rooms.model import Room  # noqa
 
 
 class Event(Base, TimestampMixin):
