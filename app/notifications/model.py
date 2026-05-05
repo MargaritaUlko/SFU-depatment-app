@@ -1,5 +1,4 @@
 import enum
-import uuid
 
 from sqlalchemy import (
     Boolean,
@@ -8,9 +7,9 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin
@@ -24,15 +23,15 @@ class NotificationType(str, enum.Enum):
 class Notification(Base, TimestampMixin):
     __tablename__ = "notifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
 
     # одно из двух заполнено
     event_id = Column(
-        UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=True
+        Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=True
     )
     announcement_id = Column(
-        UUID(as_uuid=True),
+        Integer,
         ForeignKey("announcements.id", ondelete="CASCADE"),
         nullable=True,
     )
@@ -66,14 +65,14 @@ class Notification(Base, TimestampMixin):
 class NotificationReceipt(Base, TimestampMixin):
     __tablename__ = "notification_receipts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     notification_id = Column(
-        UUID(as_uuid=True),
+        Integer,
         ForeignKey("notifications.id", ondelete="CASCADE"),
         nullable=False,
     )
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     is_read = Column(Boolean, default=False, nullable=False)
     read_at = Column(DateTime(timezone=True), nullable=True)

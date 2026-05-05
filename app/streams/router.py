@@ -24,7 +24,7 @@ async def list_streams(
 async def create_stream_endpoint(
     data: StreamCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.admin)),
+    current_user=Depends(require_roles(Role.dean)),
 ):
     return await create_stream(db, data)
 
@@ -42,7 +42,7 @@ async def get_stream(
 async def update_stream(
     stream_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user=Depends(require_roles(Role.dean)),
 ):
     pass
 
@@ -51,7 +51,7 @@ async def update_stream(
 async def partially_update_stream(
     stream_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user=Depends(require_roles(Role.dean)),
 ):
     pass
 
@@ -60,6 +60,6 @@ async def partially_update_stream(
 async def delete_stream(
     stream_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user=Depends(require_roles(Role.dean)),
 ):
     pass

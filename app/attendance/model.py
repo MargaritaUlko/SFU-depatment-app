@@ -1,33 +1,45 @@
-import uuid
+from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin
 
 
-class AttendanceReport(Base, TimestampMixin):
-    __tablename__ = "attendance_reports"
+class Attendance(Base, TimestampMixin):
+    __tablename__ = "attendance"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    starosta_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    teacher_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
-
-    subject = Column(String(255), nullable=False)
-    lesson_date = Column(DateTime(timezone=True), nullable=False)
-
-    # UUID студентов из таблицы users, пришедших на занятие
-    present_student_ids = Column(
-        ARRAY(UUID(as_uuid=True)), nullable=False, default=list
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lesson_id = Column(
+        Integer, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False
     )
-    total_students = Column(Integer, nullable=False)
-    present_count = Column(Integer, nullable=False)
+    student_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    marked_via = Column(String(10), nullable=False, default="qr")  # "qr" | "manual"
 
-    notes = Column(Text, nullable=True)
+    student = relationship("User", foreign_keys=[student_id])
 
-    starosta = relationship("User", foreign_keys=[starosta_id])
-    teacher = relationship("User", foreign_keys=[teacher_id])
-    group = relationship("Group")
+    __table_args__ = (UniqueConstraint("lesson_id", "student_id"),)
+
+
+class AttendanceToken(Base, TimestampMixin):
+    __tablename__ = "attendance_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lesson_id = Column(
+        Integer, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False
+    )
+    token = Column(String, unique=True, nullable=False, default=lambda: str(uuid4()))
+    expires_at = Column(DateTime, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    lesson = relationship("Lesson", backref="attendance_tokens")

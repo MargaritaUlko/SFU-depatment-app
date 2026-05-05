@@ -7,7 +7,6 @@ from app.messages.model import Message, TargetType  # noqa
 from app.documents.model import Document  # noqa
 from app.rooms.model import Room  # noqa
 from app.announcements.model import Announcement, Attachment, AnnouncementStatus  # noqa
-from app.schedule.model import Schedule  # noqa
-from app.attendance.model import AttendanceReport  # noqa
+from app.lessons.model import Lesson  # noqa
 from app.events.model import Event  # noqa
 from app.notifications.model import Notification, NotificationReceipt  # noqa

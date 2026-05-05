@@ -1,7 +1,4 @@
-import uuid
-
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin
@@ -10,9 +7,9 @@ from app.db.base import Base, TimestampMixin
 class Event(Base, TimestampMixin):
     __tablename__ = "events"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     announcement_id = Column(
-        UUID(as_uuid=True),
+        Integer,
         ForeignKey("announcements.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -23,12 +20,12 @@ class Event(Base, TimestampMixin):
     ends_at = Column(DateTime(timezone=True), nullable=False)
     address = Column(String(500), nullable=True)
     room_id = Column(
-        UUID(as_uuid=True), ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
+        Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
     )
 
     image_url = Column(String(500), nullable=True)
     creator_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     room = relationship("Room", back_populates="events")
     creator = relationship("User", backref="events")

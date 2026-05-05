@@ -1,6 +1,6 @@
-import uuid
 from datetime import datetime
 from typing import Optional, List
+
 from pydantic import BaseModel
 
 
@@ -10,7 +10,7 @@ class EventLinkCreate(BaseModel):
 
 
 class EventLinkRead(BaseModel):
-    id: uuid.UUID
+    id: int
     title: str
     url: str
 
@@ -36,14 +36,14 @@ class EventUpdate(BaseModel):
 
 
 class EventRead(BaseModel):
-    id: uuid.UUID
+    id: int
     title: str
     annotation: Optional[str]
     starts_at: datetime
     ends_at: datetime
     location: Optional[str]
     image_url: Optional[str]
-    creator_id: uuid.UUID
+    creator_id: int
     links: List[EventLinkRead] = []
     created_at: datetime
     updated_at: datetime

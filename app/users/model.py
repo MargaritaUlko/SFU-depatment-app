@@ -1,9 +1,8 @@
 import enum
-import uuid
 
 from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin
@@ -13,9 +12,9 @@ class Role(str, enum.Enum):
     student = "student"
     headman = "headman"  # староста
     teacher = "teacher"
-    deputy_head = "deputy_head"  # зав кафедры
     dean = "dean"  # деканат
     admin = "admin"
+    deputy_head = "deputy_head"
 
 
 class TeacherPosition(str, enum.Enum):
@@ -25,14 +24,13 @@ class TeacherPosition(str, enum.Enum):
     associate_professor = "associate_professor"  # доцент
     professor = "professor"  # профессор
     sfu_professor = "sfu_professor"  # профессор СФУ
-    head_of_department = "head_of_department"  # заведующий кафедрой
     acting_head = "acting_head"  # и.о. заведующего кафедрой
 
 
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100))
     surname = Column(String(100))
     patronymic = Column(String(100), nullable=True)
@@ -50,14 +48,12 @@ class User(Base, TimestampMixin):
 
 
 class StudentProfile(Base, TimestampMixin):
-    __tablename__ = "student_profile"
+    __tablename__ = "student_profiles"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
-    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     phone = Column(String(20), nullable=True)
     telegram = Column(String(100), nullable=True)
     vk = Column(String(100), nullable=True)
@@ -69,10 +65,8 @@ class StudentProfile(Base, TimestampMixin):
 class TeacherProfile(Base, TimestampMixin):
     __tablename__ = "teacher_profiles"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
-    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
     department = Column(String(255), nullable=True)
     positions = Column(
@@ -88,13 +82,11 @@ class TeacherProfile(Base, TimestampMixin):
 class DeanProfile(Base, TimestampMixin):
     __tablename__ = "dean_profiles"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
-    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
-    faculty = Column(String(255), nullable=False)  # название факультета/института
-    position = Column(String(255), nullable=True)  # должность в деканате
+    faculty = Column(String(255), nullable=False)
+    position = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
     cabinet = Column(String(50), nullable=True)
 

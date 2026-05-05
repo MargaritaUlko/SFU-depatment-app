@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -15,7 +14,7 @@ class UserCreate(BaseModel):
 
 
 class UserRead(BaseModel):
-    id: uuid.UUID
+    id: int
     name: str
     email: EmailStr
     role: Role

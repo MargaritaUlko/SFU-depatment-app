@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -7,14 +6,14 @@ from pydantic import BaseModel
 
 class GroupCreate(BaseModel):
     name: str
-    stream_id: Optional[uuid.UUID] = None
+    stream_id: int
     year: int
 
 
 class GroupRead(BaseModel):
-    id: uuid.UUID
+    id: int
     name: str
-    stream_id: Optional[uuid.UUID]
+    stream_id: Optional[int]
     year: int
     created_at: datetime
     updated_at: datetime

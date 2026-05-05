@@ -1,5 +1,5 @@
-import uuid
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -10,7 +10,7 @@ class StreamCreate(BaseModel):
 
 
 class StreamRead(BaseModel):
-    id: uuid.UUID
+    id: int
     name: str
     year: int
     speciality: str

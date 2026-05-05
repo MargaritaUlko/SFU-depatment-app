@@ -17,6 +17,7 @@ sqladmin>=0.18.0
 itsdangerous>=2.2.0
 locust>=2.20.0
 celery[redis]>=5.4.0
+qrcode
 # Tests
 pytest==8.3.2
 pytest-asyncio==0.23.8

@@ -1,32 +1,60 @@
-from typing import List, Optional
-from uuid import UUID
+from datetime import datetime
+from typing import List
 
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.attendance.crud import create_attendance_, get_attendance_, list_attendance_
-from app.attendance.model import AttendanceReport
-from app.attendance.schemas import AttendanceCreate
-from app.users.model import User
+from app.attendance.crud import (
+    create_attendance,
+    create_token,
+    get_active_token as _get_active_token,
+    get_by_lesson,
+    get_by_student,
+    get_token_by_value,
+)
+from app.attendance.model import Attendance, AttendanceToken
 
 
-async def create_attendance(
-    db: AsyncSession,
-    data: AttendanceCreate,
-    current_user: User,
-) -> AttendanceReport:
-    return await create_attendance_(db, data, user_id=current_user.id)
+async def generate_token(db: AsyncSession, lesson_id: int, expires_minutes: int) -> AttendanceToken:
+    return await create_token(db, lesson_id, expires_minutes)
 
 
-async def get_attendance(
-    db: AsyncSession, report_id: UUID
-) -> Optional[AttendanceReport]:
-    return await get_attendance_(db, report_id)
+async def get_active_token(db: AsyncSession, lesson_id: int) -> AttendanceToken:
+    token = await _get_active_token(db, lesson_id)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Активный токен не найден")
+    if token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Токен истёк")
+    return token
 
 
-async def list_attendance(
-    db: AsyncSession,
-    group_id: Optional[UUID] = None,
-    skip: int = 0,
-    limit: int = 50,
-) -> List[AttendanceReport]:
-    return await list_attendance_(db, group_id=group_id, skip=skip, limit=limit)
+async def scan_qr(db: AsyncSession, token_str: str, student_id: int) -> Attendance:
+    token = await get_token_by_value(db, token_str)
+
+    if not token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Токен не найден")
+    if not token.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Токен неактивен")
+    if token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Токен истёк")
+
+    try:
+        return await create_attendance(db, token.lesson_id, student_id, marked_via="qr")
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Посещение уже отмечено")
+
+
+async def mark_manually(db: AsyncSession, lesson_id: int, student_id: int) -> Attendance:
+    try:
+        return await create_attendance(db, lesson_id, student_id, marked_via="manual")
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Посещение уже отмечено")
+
+
+async def lesson_attendance(db: AsyncSession, lesson_id: int) -> List[Attendance]:
+    return await get_by_lesson(db, lesson_id)
+
+
+async def student_attendance(db: AsyncSession, student_id: int) -> List[Attendance]:
+    return await get_by_student(db, student_id)

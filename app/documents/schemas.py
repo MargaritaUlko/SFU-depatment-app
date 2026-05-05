@@ -1,18 +1,19 @@
-import uuid
 from datetime import datetime
 from typing import Optional, List
+
 from pydantic import BaseModel
+
 from app.users.model import Role
 
 
 class DocumentRead(BaseModel):
-    id: uuid.UUID
+    id: int
     title: str
     description: Optional[str]
     category: str
     visibility: List[str]
     file_name: str
-    uploader_id: uuid.UUID
+    uploader_id: int
     created_at: datetime
     updated_at: datetime
 

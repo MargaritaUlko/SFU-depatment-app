@@ -18,6 +18,8 @@ from app.admin.views import (
     UserAdmin,
 )
 from app.announcements.router import router as announcements_router
+from app.lessons.router import router as lessons_router
+from app.rooms.route import router as rooms_router
 from app.attendance.router import router as attendance_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
@@ -93,6 +95,8 @@ app.include_router(messages_router, prefix=PREFIX)
 app.include_router(events_router, prefix=PREFIX)
 app.include_router(documents_router, prefix=PREFIX)
 app.include_router(announcements_router, prefix=PREFIX)
+app.include_router(lessons_router, prefix=PREFIX)
+app.include_router(rooms_router, prefix=PREFIX)
 app.include_router(attendance_router, prefix=PREFIX)
 
 

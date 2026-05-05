@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import List, Optional
-from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -54,7 +53,7 @@ class AnnouncementOut(BaseModel):
     status: AnnouncementStatus
     publish_at: Optional[datetime]
     expires_at: Optional[datetime]
-    author_id: UUID
+    author_id: int
     created_at: datetime
     attachments: List[AttachmentOut] = []
 

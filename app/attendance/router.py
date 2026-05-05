@@ -1,11 +1,20 @@
-from typing import List, Optional
-from uuid import UUID
+import io
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import qrcode
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.attendance.schemas import AttendanceCreate, AttendanceOut
-from app.attendance.service import create_attendance, get_attendance, list_attendance
+from app.attendance.schemas import AttendanceOut, AttendanceTokenOut
+from app.attendance.service import (
+    generate_token,
+    get_active_token,
+    lesson_attendance,
+    mark_manually,
+    scan_qr,
+    student_attendance,
+)
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
 from app.users.model import Role
@@ -13,53 +22,61 @@ from app.users.model import Role
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 
-@router.post("", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
-async def create_attendance_endpoint(
-    data: AttendanceCreate,
+@router.post("/token/{lesson_id}", response_model=AttendanceTokenOut, status_code=status.HTTP_201_CREATED)
+async def create_token_endpoint(
+    lesson_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.headman, Role.teacher)),
+    current_user=Depends(require_roles(Role.teacher, Role.headman)),
 ):
-    return await create_attendance(db, data, current_user)
+    return await generate_token(db, lesson_id, expires_minutes=15)
 
 
-@router.get("", response_model=List[AttendanceOut])
-async def list_attendance_endpoint(
-    group_id: Optional[UUID] = None,
-    skip: int = 0,
-    limit: int = 50,
+@router.get("/token/{lesson_id}/qr")
+async def get_qr_endpoint(
+    lesson_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_roles(Role.teacher, Role.headman)),
+):
+    token = await get_active_token(db, lesson_id)
+    img = qrcode.make(token.token)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@router.post("/scan/{token}", response_model=AttendanceOut)
+async def scan_qr_endpoint(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_roles(Role.student, Role.headman)),
+):
+    return await scan_qr(db, token, current_user.id)
+
+
+@router.post("/manual/{lesson_id}/{student_id}", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
+async def mark_manual_endpoint(
+    lesson_id: int,
+    student_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_roles(Role.teacher, Role.headman)),
+):
+    return await mark_manually(db, lesson_id, student_id)
+
+
+@router.get("/lesson/{lesson_id}", response_model=List[AttendanceOut])
+async def get_lesson_attendance_endpoint(
+    lesson_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return await list_attendance(db, group_id=group_id, skip=skip, limit=limit)
+    return await lesson_attendance(db, lesson_id)
 
 
-@router.get("/{report_id}", response_model=AttendanceOut)
-async def get_attendance_endpoint(
-    report_id: UUID,
+@router.get("/student/{student_id}", response_model=List[AttendanceOut])
+async def get_student_attendance_endpoint(
+    student_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    report = await get_attendance(db, report_id)
-    if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Отчёт не найден"
-        )
-    return report
-
-
-@router.patch("/{report_id}", response_model=AttendanceOut)
-async def update_attendance_endpoint(
-    report_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    pass
-
-
-@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_attendance_endpoint(
-    report_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    pass
+    return await student_attendance(db, student_id)

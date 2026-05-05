@@ -1,54 +1,64 @@
+from datetime import datetime, timedelta
 from typing import List, Optional
-from uuid import UUID
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.attendance.model import AttendanceReport
-from app.attendance.schemas import AttendanceCreate
+from app.attendance.model import Attendance, AttendanceToken
 
 
-async def create_attendance_(
-    db: AsyncSession,
-    data: AttendanceCreate,
-    starosta_id: UUID,
-) -> AttendanceReport:
-    report = AttendanceReport(
-        starosta_id=starosta_id,
-        teacher_id=data.teacher_id,
-        group_id=data.group_id,
-        subject=data.subject,
-        lesson_date=data.lesson_date,
-        present_student_ids=data.present_student_ids,
-        total_students=data.total_students,
-        present_count=len(data.present_student_ids),
-        notes=data.notes,
+async def create_token(db: AsyncSession, lesson_id: int, expires_minutes: int) -> AttendanceToken:
+    existing = await db.execute(
+        select(AttendanceToken).where(
+            AttendanceToken.lesson_id == lesson_id,
+            AttendanceToken.is_active == True,
+        )
     )
-    db.add(report)
+    for t in existing.scalars():
+        t.is_active = False
+
+    token = AttendanceToken(
+        lesson_id=lesson_id,
+        token=str(uuid4()),
+        expires_at=datetime.utcnow() + timedelta(minutes=expires_minutes),
+    )
+    db.add(token)
     await db.commit()
-    await db.refresh(report)
-    return report
+    await db.refresh(token)
+    return token
 
 
-async def get_attendance_(
-    db: AsyncSession, report_id: UUID
-) -> Optional[AttendanceReport]:
+async def get_active_token(db: AsyncSession, lesson_id: int) -> Optional[AttendanceToken]:
     result = await db.execute(
-        select(AttendanceReport).where(AttendanceReport.id == report_id)
+        select(AttendanceToken).where(
+            AttendanceToken.lesson_id == lesson_id,
+            AttendanceToken.is_active == True,
+        )
     )
     return result.scalar_one_or_none()
 
 
-async def list_attendance_(
-    db: AsyncSession,
-    group_id: Optional[UUID] = None,
-    skip: int = 0,
-    limit: int = 50,
-) -> List[AttendanceReport]:
-    query = select(AttendanceReport).order_by(AttendanceReport.lesson_date.desc())
-    if group_id:
-        query = query.where(AttendanceReport.group_id == group_id)
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
+async def get_token_by_value(db: AsyncSession, token: str) -> Optional[AttendanceToken]:
+    result = await db.execute(select(AttendanceToken).where(AttendanceToken.token == token))
+    return result.scalar_one_or_none()
+
+
+async def create_attendance(
+    db: AsyncSession, lesson_id: int, student_id: int, marked_via: str
+) -> Attendance:
+    record = Attendance(lesson_id=lesson_id, student_id=student_id, marked_via=marked_via)
+    db.add(record)
+    await db.commit()
+    await db.refresh(record)
+    return record
+
+
+async def get_by_lesson(db: AsyncSession, lesson_id: int) -> List[Attendance]:
+    result = await db.execute(select(Attendance).where(Attendance.lesson_id == lesson_id))
+    return result.scalars().all()
+
+
+async def get_by_student(db: AsyncSession, student_id: int) -> List[Attendance]:
+    result = await db.execute(select(Attendance).where(Attendance.student_id == student_id))
     return result.scalars().all()
