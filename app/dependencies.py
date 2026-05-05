@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,16 +16,12 @@ async def get_current_user(
 ) -> User:
     payload = decode_token(token)
     if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Недействительный токен",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        print(payload)
     try:
-        user_id = uuid.UUID(payload["sub"])
+        user_id = int(payload["sub"])
     except (KeyError, ValueError):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен123"
         )
 
     user = await get_user(db, user_id)
