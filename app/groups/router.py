@@ -24,7 +24,7 @@ async def list_groups(
 async def create_group_endpoint(
     data: GroupCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.admin)),
+    _=Depends(require_roles(Role.dean)),
 ):
     return await create_group(db, data)
 

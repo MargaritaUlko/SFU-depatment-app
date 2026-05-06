@@ -8,6 +8,8 @@ from app.users.model import Role
 
 class UserCreate(BaseModel):
     name: str
+    surname: str
+    patronymic: Optional[str]
     email: EmailStr
     password: str
     role: Role = Role.student
@@ -16,6 +18,8 @@ class UserCreate(BaseModel):
 class UserRead(BaseModel):
     id: int
     name: str
+    surname: str
+    patronymic: Optional[str]
     email: EmailStr
     role: Role
     is_active: bool

@@ -16,12 +16,14 @@ async def get_current_user(
 ) -> User:
     payload = decode_token(token)
     if not payload:
-        print(payload)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен"
+        )
     try:
         user_id = int(payload["sub"])
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, TypeError):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен123"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен"
         )
 
     user = await get_user(db, user_id)

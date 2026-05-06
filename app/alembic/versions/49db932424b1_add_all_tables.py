@@ -59,8 +59,8 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("name", sa.String(length=100), nullable=True),
-        sa.Column("surname", sa.String(length=100), nullable=True),
+        sa.Column("name", sa.String(length=100)),
+        sa.Column("surname", sa.String(length=100)),
         sa.Column("patronymic", sa.String(length=100), nullable=True),
         sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("hashed_password", sa.String(length=255), nullable=False),
@@ -257,6 +257,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+
     op.create_table(
         "teacher_profiles",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -374,7 +375,9 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("group_id", "date", "time_start", "subject", name="uq_lesson"),
+        sa.UniqueConstraint(
+            "group_id", "date", "time_start", "subject", name="uq_lesson"
+        ),
     )
     op.create_table(
         "attendance_reports",
@@ -382,7 +385,9 @@ def upgrade() -> None:
         sa.Column("lesson_id", sa.Integer(), nullable=False),
         sa.Column("starosta_id", sa.Integer(), nullable=False),
         sa.Column("teacher_id", sa.Integer(), nullable=True),
-        sa.Column("present_student_ids", postgresql.ARRAY(sa.Integer()), nullable=False),
+        sa.Column(
+            "present_student_ids", postgresql.ARRAY(sa.Integer()), nullable=False
+        ),
         sa.Column("total_students", sa.Integer(), nullable=False),
         sa.Column("present_count", sa.Integer(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),

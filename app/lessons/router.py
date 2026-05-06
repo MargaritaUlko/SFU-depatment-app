@@ -36,6 +36,7 @@ async def lessons_by_teacher(
 @router.post("/sync", response_model=SyncResult)
 async def sync(
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.admin)),
+    # _=Depends(require_roles(Role.admin)),
+    _=Depends(require_roles(Role.dean)),
 ):
     return await sync_lessons(db)

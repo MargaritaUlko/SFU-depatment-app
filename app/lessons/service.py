@@ -77,8 +77,8 @@ async def sync_lessons(db: AsyncSession) -> dict:
             if not subject:
                 continue
 
-            day = entry.get("day")
-            week = entry.get("week")
+            day = int(entry.get("day", 0))
+            week = int(entry.get("week", 0))
             time_start, time_end = _parse_time(entry.get("time", ""))
 
             existing = await db.execute(
