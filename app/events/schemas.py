@@ -1,20 +1,9 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 from pydantic import BaseModel
 
-
-class EventLinkCreate(BaseModel):
-    title: str
-    url: str
-
-
-class EventLinkRead(BaseModel):
-    id: int
-    title: str
-    url: str
-
-    model_config = {"from_attributes": True}
+from app.rooms.schemas import RoomRead
 
 
 class EventCreate(BaseModel):
@@ -22,8 +11,7 @@ class EventCreate(BaseModel):
     annotation: Optional[str] = None
     starts_at: datetime
     ends_at: datetime
-    location: Optional[str] = None
-    links: List[EventLinkCreate] = []
+    room_id: Optional[int] = None
 
 
 class EventUpdate(BaseModel):
@@ -31,20 +19,18 @@ class EventUpdate(BaseModel):
     annotation: Optional[str] = None
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
-    location: Optional[str] = None
-    links: Optional[List[EventLinkCreate]] = None
+    room_id: Optional[int] = None
 
 
 class EventRead(BaseModel):
     id: int
     title: str
-    annotation: Optional[str]
+    annotation: Optional[str] = None
     starts_at: datetime
     ends_at: datetime
-    location: Optional[str]
-    image_url: Optional[str]
+    room: Optional[RoomRead] = None
+    image_url: Optional[str] = None
     creator_id: int
-    links: List[EventLinkRead] = []
     created_at: datetime
     updated_at: datetime
 

@@ -16,7 +16,8 @@ from app.announcements.service import (
     delete_announcement,
     get_announcement,
     get_announcements,
-    # update_announcement,
+    restore_announcement,
+    update_announcement,
 )
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
@@ -72,26 +73,26 @@ async def update_announcement_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_roles(Role.headman, Role.deputy_head, Role.dean)),
 ):
-    ann = await update_announcement(db, ann_id, current_user)
-    if not ann:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено"
-        )
+    ann = await get_announcement(db, ann_id)
     return await update_announcement(db, ann, data, current_user)
 
 
-@router.patch("/{ann_id}", response_model=AnnouncementOut)
+@router.patch("/{ann_id}/archive", response_model=AnnouncementOut)
 async def archive_announcement_endpoint(
     ann_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.headman, Role.deputy_head, Role.dean)),
+    current_user=Depends(require_roles(Role.headman, Role.deputy_head, Role.dean, Role.admin)),
 ):
-    ann = await get_announcement(db, ann_id, current_user)
-    if not ann:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено"
-        )
     return await archive_announcement(db, ann_id, current_user)
+
+
+@router.patch("/{ann_id}/restore", response_model=AnnouncementOut)
+async def restore_announcement_endpoint(
+    ann_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_roles(Role.dean, Role.admin)),
+):
+    return await restore_announcement(db, ann_id, current_user)
 
 
 @router.delete("/{ann_id}", status_code=status.HTTP_204_NO_CONTENT)

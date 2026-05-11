@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -10,12 +9,16 @@ class GroupCreate(BaseModel):
     year: int
 
 
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    stream_id: Optional[int] = None
+    year: Optional[int] = None
+
+
 class GroupRead(BaseModel):
     id: int
     name: str
     stream_id: Optional[int]
     year: int
-    created_at: datetime
-    updated_at: datetime
 
     model_config = {"from_attributes": True}

@@ -1,4 +1,4 @@
-from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,12 +9,16 @@ class StreamCreate(BaseModel):
     speciality: str
 
 
+class StreamUpdate(BaseModel):
+    name: Optional[str] = None
+    year: Optional[int] = None
+    speciality: Optional[str] = None
+
+
 class StreamRead(BaseModel):
     id: int
     name: str
     year: int
     speciality: str
-    created_at: datetime
-    updated_at: datetime
 
     model_config = {"from_attributes": True}

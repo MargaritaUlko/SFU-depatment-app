@@ -12,13 +12,17 @@ from app.announcements.crud import (
     delete_announcement_,
     get_announcement_,
     get_announcements_,
+    restore_announcement_,
+    update_announcement_,
 )
 from app.announcements.model import Announcement, AnnouncementStatus, Attachment
 from app.announcements.schemas import (
     AnnouncementCreate,
     AnnouncementFilters,
+    AnnouncementUpdate,
 )
 from app.core.config import settings
+from app.users.crud import get_groups_by_teacher
 from app.users.model import Role, User
 
 
@@ -42,23 +46,64 @@ async def create_announcement(
     user: User,
 ) -> Announcement:
     if user.role == Role.headman:
-        AnnouncementCreate.target_group = user.student_profile.group_id
+        data.target_group_ids = [user.student_profile.group_id]
     elif user.role == Role.teacher:
-        pass
-    return await create_announcement_(db, data)
+        teacher_groups_ids = await get_groups_by_teacher(db, user.id)
+        if data.target_group_ids:
+            data.target_group_ids = [
+                gid for gid in data.target_group_ids if gid in teacher_groups_ids
+            ]
+    return await create_announcement_(db, data, user)
 
 
 async def get_announcement(db: AsyncSession, ann_id: int) -> Optional[Announcement]:
-    return await get_announcement_(db, ann_id)
+    result = await get_announcement_(db, ann_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+    return result
+
+
+async def update_announcement(
+    db: AsyncSession,
+    ann: Announcement,
+    data: AnnouncementUpdate,
+    current_user: User,
+) -> Announcement:
+    if current_user.role == Role.dean:
+        pass  # может редактировать любой анонс
+    elif current_user.role == Role.deputy_head:
+        author_profile = ann.author.teacher_profile if ann.author else None
+        my_profile = current_user.teacher_profile
+        if (
+            author_profile is None
+            or my_profile is None
+            or author_profile.department != my_profile.department
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Можно редактировать только объявления своей кафедры",
+            )
+    else:
+        # headman и прочие — только своё
+        if ann.author_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Можно редактировать только свои объявления",
+            )
+
+    return await update_announcement_(db, ann, data)
 
 
 async def archive_announcement(
     db: AsyncSession,
-    ann: int,
+    ann_id: int,
     current_user: User,
 ) -> Announcement:
+    ann = await get_announcement(ann_id)
+    if ann is None:
+        return None
     await check_can_archive(ann, current_user)
-    return await archive_announcement_(db, ann)
+    return await archive_announcement_(db, ann_id)
 
 
 async def check_can_archive(
@@ -83,6 +128,17 @@ async def check_can_archive(
     # остальные только своё
     if announcement.author_id != current_user.id:
         raise HTTPException(403, "можно архивировать только свои объявления")
+
+
+async def restore_announcement(
+    db: AsyncSession,
+    ann_id: int,
+    current_user: User,
+) -> Announcement:
+    ann = await get_announcement(db, ann_id)
+    if ann.status != AnnouncementStatus.archived:
+        raise HTTPException(status_code=400, detail="Объявление не архивировано")
+    return await restore_announcement_(db, ann_id)
 
 
 async def delete_announcement(

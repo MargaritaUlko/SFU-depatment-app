@@ -4,6 +4,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.email import send_credentials_email
+from app.core.security import generate_password
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
 from app.users.crud import (
@@ -18,6 +20,9 @@ from app.users.schemas import UserCreate, UserRead, UserRoleUpdate, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+# Роли, для которых пароль генерируется и отправляется на email
+_PROVISIONED_ROLES = {Role.headman, Role.teacher, Role.dean, Role.deputy_head}
+
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def admin_create_user(
@@ -30,7 +35,25 @@ async def admin_create_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email уже зарегистрирован"
         )
-    return await create_user(db, data)
+
+    if data.role in _PROVISIONED_ROLES:
+        plain_password = generate_password()
+        data = data.model_copy(update={"password": plain_password})
+    else:
+        if not data.password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Пароль обязателен для роли student/admin",
+            )
+        plain_password = None
+
+    user = await create_user(db, data)
+
+    if plain_password is not None:
+        full_name = f"{data.surname} {data.name}"
+        await send_credentials_email(data.email, full_name, plain_password)
+
+    return user
 
 
 @router.get("", response_model=List[UserRead])

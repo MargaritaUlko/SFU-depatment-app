@@ -1,8 +1,8 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -14,6 +14,8 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+ARCHIVE_TTL_DAYS = 14
+
 
 async def _sync_statuses() -> None:
     # NullPool — обязательно для Celery: каждая задача создаёт свой event loop,
@@ -22,6 +24,8 @@ async def _sync_statuses() -> None:
     Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     now = datetime.now(timezone.utc)
+    archive_deadline = now - timedelta(days=ARCHIVE_TTL_DAYS)
+
     async with Session() as db:
         published = await db.execute(
             update(Announcement)
@@ -38,7 +42,14 @@ async def _sync_statuses() -> None:
                 Announcement.expires_at.isnot(None),
                 Announcement.expires_at <= now,
             )
-            .values(status=AnnouncementStatus.archived)
+            .values(status=AnnouncementStatus.archived, updated_at=now)
+        )
+        deleted = await db.execute(
+            delete(Announcement)
+            .where(
+                Announcement.status == AnnouncementStatus.archived,
+                Announcement.updated_at <= archive_deadline,
+            )
         )
         await db.commit()
 
@@ -48,6 +59,8 @@ async def _sync_statuses() -> None:
         logger.info("Опубликовано объявлений: %d", published.rowcount)
     if archived.rowcount:
         logger.info("Архивировано объявлений: %d", archived.rowcount)
+    if deleted.rowcount:
+        logger.info("Удалено архивных объявлений: %d", deleted.rowcount)
 
 
 @celery_app.task(name="app.announcements.tasks.sync_announcement_statuses")

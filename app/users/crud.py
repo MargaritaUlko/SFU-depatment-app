@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
+from app.groups.model import Group
+from app.lessons.model import Lesson
 from app.users.model import Role, User
 from app.users.schemas import UserCreate, UserUpdate
 
@@ -70,3 +72,14 @@ async def authenticate_user(
     if not user or not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+async def get_groups_by_teacher(db: AsyncSession, teacher_id: int) -> list[Group]:
+    q = (
+        select(Group.id)
+        .join(Lesson, Lesson.group_id == Group.id)
+        .where(Lesson.teacher_id == teacher_id)
+        .distinct()
+    )
+    result = await db.execute(q)
+    return list(result.scalars().all())

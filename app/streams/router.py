@@ -1,12 +1,12 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
-from app.streams.crud import create_stream, get_streams
-from app.streams.schemas import StreamCreate, StreamRead
+from app.streams.crud import create_stream, delete_stream, get_stream, get_streams, update_stream
+from app.streams.schemas import StreamCreate, StreamRead, StreamUpdate
 from app.users.model import Role
 
 router = APIRouter(prefix="/streams", tags=["streams"])
@@ -24,42 +24,44 @@ async def list_streams(
 async def create_stream_endpoint(
     data: StreamCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.dean)),
+    _=Depends(require_roles(Role.dean, Role.admin)),
 ):
     return await create_stream(db, data)
 
 
 @router.get("/{stream_id}", response_model=StreamRead)
-async def get_stream(
+async def get_stream_endpoint(
     stream_id: int,
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    pass
+    stream = await get_stream(db, stream_id)
+    if stream is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Поток не найден")
+    return stream
 
-
-@router.put("/{stream_id}", response_model=StreamRead)
-async def update_stream(
-    stream_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.dean)),
-):
-    pass
 
 
 @router.patch("/{stream_id}", response_model=StreamRead)
-async def partially_update_stream(
+async def update_stream_endpoint(
     stream_id: int,
+    data: StreamUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.dean)),
+    _=Depends(require_roles(Role.dean, Role.admin)),
 ):
-    pass
+    stream = await get_stream(db, stream_id)
+    if stream is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Поток не найден")
+    return await update_stream(db, stream, data)
 
 
 @router.delete("/{stream_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_stream(
+async def delete_stream_endpoint(
     stream_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.dean)),
+    _=Depends(require_roles(Role.dean, Role.admin)),
 ):
-    pass
+    stream = await get_stream(db, stream_id)
+    if stream is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Поток не найден")
+    await delete_stream(db, stream)

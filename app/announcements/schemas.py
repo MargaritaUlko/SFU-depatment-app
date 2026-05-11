@@ -30,13 +30,15 @@ class AnnouncementCreate(BaseModel):
     content: str
     publish_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
-    target_group: Optional[str] = None
+    target_group_ids: Optional[List[int]] = None
+    target_stream_ids: Optional[List[int]] = None
 
 
 class AnnouncementUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
-    target_group: Optional[str] = None
+    target_group_ids: Optional[List[int]] = None
+    target_stream_ids: Optional[List[int]] = None
     publish_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 

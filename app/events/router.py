@@ -1,5 +1,4 @@
 import os
-import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -47,7 +46,7 @@ async def create_event_endpoint(
 
 @router.get("/{event_id}", response_model=EventRead)
 async def get_event_endpoint(
-    event_id: uuid.UUID,
+    event_id: int,
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
@@ -61,7 +60,7 @@ async def get_event_endpoint(
 
 @router.put("/{event_id}", response_model=EventRead)
 async def update_event_endpoint(
-    event_id: uuid.UUID,
+    event_id: int,
     data: EventUpdate,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
@@ -83,7 +82,7 @@ async def update_event_endpoint(
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_event_endpoint(
-    event_id: uuid.UUID,
+    event_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
 ):
@@ -104,7 +103,7 @@ async def delete_event_endpoint(
 
 @router.post("/{event_id}/image", response_model=EventRead)
 async def upload_event_image(
-    event_id: uuid.UUID,
+    event_id: int,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),

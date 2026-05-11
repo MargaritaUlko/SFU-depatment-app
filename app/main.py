@@ -12,7 +12,7 @@ from app.admin.views import (
     DocumentAdmin,
     EventAdmin,
     GroupAdmin,
-    MessageAdmin,
+
     RefreshTokenAdmin,
     StreamAdmin,
     UserAdmin,
@@ -28,7 +28,7 @@ from app.db.session import engine
 from app.documents.router import router as documents_router
 from app.events.router import router as events_router
 from app.groups.router import router as groups_router
-from app.messages.router import router as messages_router
+from app.chat.router import router as chat_router
 from app.streams.router import router as streams_router
 from app.users.router import router as users_router
 
@@ -76,7 +76,7 @@ admin.add_view(UserAdmin)
 admin.add_view(RefreshTokenAdmin)
 admin.add_view(StreamAdmin)
 admin.add_view(GroupAdmin)
-admin.add_view(MessageAdmin)
+
 admin.add_view(EventAdmin)
 admin.add_view(DocumentAdmin)
 
@@ -91,7 +91,7 @@ app.include_router(auth_router, prefix=PREFIX)
 app.include_router(users_router, prefix=PREFIX)
 app.include_router(groups_router, prefix=PREFIX)
 app.include_router(streams_router, prefix=PREFIX)
-app.include_router(messages_router, prefix=PREFIX)
+app.include_router(chat_router, prefix=PREFIX)
 app.include_router(events_router, prefix=PREFIX)
 app.include_router(documents_router, prefix=PREFIX)
 app.include_router(announcements_router, prefix=PREFIX)

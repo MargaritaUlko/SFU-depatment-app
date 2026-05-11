@@ -9,9 +9,9 @@ from app.users.model import Role
 class UserCreate(BaseModel):
     name: str
     surname: str
-    patronymic: Optional[str]
+    patronymic: Optional[str] = None
     email: EmailStr
-    password: str
+    password: Optional[str] = None
     role: Role = Role.student
 
 

@@ -18,7 +18,7 @@ from app.core.security import hash_password
 from app.users.model import Role, User
 
 
-async def create_superuser(name: str, email: str, password: str) -> None:
+async def create_superuser(name: str, surname: str, email: str, password: str) -> None:
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -31,6 +31,7 @@ async def create_superuser(name: str, email: str, password: str) -> None:
 
         user = User(
             name=name,
+            surname=surname,
             email=email,
             hashed_password=hash_password(password),
             role=Role.admin,

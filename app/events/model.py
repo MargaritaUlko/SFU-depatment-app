@@ -10,23 +10,20 @@ class Event(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     announcement_id = Column(
         Integer,
-        ForeignKey("announcements.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("announcements.id", ondelete="SET NULL"),
+        nullable=True,
         unique=True,
     )
     title = Column(String(255), nullable=False)
     annotation = Column(Text, nullable=True)
     starts_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=False)
-    address = Column(String(500), nullable=True)
     room_id = Column(
         Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
     )
 
     image_url = Column(String(500), nullable=True)
-    creator_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    creator_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     room = relationship("Room", back_populates="events")
     creator = relationship("User", backref="events")
     announcement = relationship("Announcement", back_populates="event")
