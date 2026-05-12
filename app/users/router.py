@@ -50,7 +50,11 @@ async def admin_create_user(
 
     if plain_password is not None:
         full_name = f"{data.surname} {data.name}"
-        await send_credentials_email(data.email, full_name, plain_password)
+        try:
+            await send_credentials_email(data.email, full_name, plain_password)
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).error("Не удалось отправить письмо %s: %s", data.email, exc)
 
     return user
 

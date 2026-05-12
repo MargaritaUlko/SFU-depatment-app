@@ -19,11 +19,10 @@ class Settings(BaseSettings):
     MAX_BOT_API_URL: str = "https://api.max.ru/bot/v1"
     REDIS_URL: str = "redis://localhost:6379"
 
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    RESEND_API_KEY: str = ""
     SMTP_FROM: str = ""
+
+    ROOT_PATH: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
