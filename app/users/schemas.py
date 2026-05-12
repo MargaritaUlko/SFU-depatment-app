@@ -35,5 +35,6 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
 
 
-class UserRoleUpdate(BaseModel):
-    role: Role
+class UserPasswordChange(BaseModel):
+    old_password: str
+    new_password: str

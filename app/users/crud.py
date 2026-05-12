@@ -1,4 +1,3 @@
-import uuid
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -11,7 +10,7 @@ from app.users.model import Role, User
 from app.users.schemas import UserCreate, UserUpdate
 
 
-async def get_user(db: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
+async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
 

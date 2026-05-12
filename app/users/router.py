@@ -1,11 +1,10 @@
-import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email import send_credentials_email
-from app.core.security import generate_password
+from app.core.security import generate_password, verify_password
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
 from app.users.crud import (
@@ -15,8 +14,8 @@ from app.users.crud import (
     get_users,
     update_user,
 )
-from app.users.model import Role
-from app.users.schemas import UserCreate, UserRead, UserRoleUpdate, UserUpdate
+from app.users.model import Role, User
+from app.users.schemas import UserCreate, UserPasswordChange, UserRead, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -68,7 +67,7 @@ async def list_users(
 
 @router.get("/{user_id}", response_model=UserRead)
 async def get_user_profile(
-    user_id: uuid.UUID,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -82,7 +81,7 @@ async def get_user_profile(
 
 @router.put("/{user_id}", response_model=UserRead)
 async def update_user_profile(
-    user_id: uuid.UUID,
+    user_id: int,
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -99,19 +98,26 @@ async def update_user_profile(
     return await update_user(db, user, data)
 
 
-@router.patch("/{user_id}/role", response_model=UserRead)
-async def change_user_role(
-    user_id: uuid.UUID,
-    data: UserRoleUpdate,
+@router.patch("/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    user_id: int,
+    data: UserPasswordChange,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.admin)),
+    current_user: User = Depends(get_current_user),
 ):
-    pass
+    if current_user.id != user_id and current_user.role != Role.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    user = await get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    if current_user.role != Role.admin and not verify_password(data.old_password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль")
+    await update_user(db, user, UserUpdate(password=data.new_password))
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_endpoint(
-    user_id: uuid.UUID,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(Role.admin)),
 ):

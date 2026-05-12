@@ -109,6 +109,30 @@ Chat
 
 ---
 
+## Флоу авторизации
+
+### Студент
+1. `POST /auth/register` — самостоятельная регистрация, роль всегда `student`
+2. `POST /auth/login` → `access_token` + `refresh_token`
+
+### Преподаватель / деканат / староста (`teacher`, `dean`, `headman`, `deputy_head`)
+Самостоятельная регистрация недоступна — аккаунт создаёт только `admin`:
+
+1. `POST /users` (admin) — передаёт `email`, `name`, `surname`, нужную роль; пароль **не указывается**
+2. Бэк генерирует случайный пароль (`generate_password`, 12 символов)
+3. Создаёт пользователя в БД
+4. Отправляет письмо на указанный email с логином и паролем (`send_credentials_email`)
+5. Пользователь логинится через `POST /auth/login` полученными кредами
+
+### Общий механизм токенов
+- **Access-токен** (JWT): `sub=user_id`, `role`, `type="access"`. Живёт `ACCESS_TOKEN_EXPIRE_MINUTES`.
+- **Refresh-токен** (JWT): `sub`, `jti` (UUID), `type="refresh"`. Хранится в таблице `refresh_tokens` (поле `revoked`). Живёт `REFRESH_TOKEN_EXPIRE_DAYS`.
+- `POST /auth/refresh` — rotation: старый refresh отзывается, выдаётся новая пара токенов.
+- `POST /auth/logout` — refresh отзывается; access-токен живёт до истечения срока (stateless).
+- Защита маршрутов: `require_roles(Role.teacher, ...)` — проверяет `user.role` после декодирования access-токена.
+
+---
+
 ## Права доступа по модулям
 
 ### Users `/users`
