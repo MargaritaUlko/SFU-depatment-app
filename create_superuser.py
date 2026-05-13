@@ -13,6 +13,8 @@ import sys
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+import app.db.models  # noqa: F401
+
 from app.core.config import settings
 from app.core.security import hash_password
 from app.users.model import Role, User
