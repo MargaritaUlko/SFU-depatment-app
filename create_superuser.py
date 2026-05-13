@@ -59,9 +59,11 @@ def main() -> None:
     parser.add_argument("--email", default=None)
     parser.add_argument("--password", default=None)
     parser.add_argument("--name", default=None, dest="name")
+    parser.add_argument("--surname", default=None, dest="surname")
     args = parser.parse_args()
 
     name = args.name or prompt("Имя")
+    surname = args.surname or prompt("Фамилия")
     email = args.email or prompt("Email")
     password = args.password or prompt("Пароль", secret=True)
 
@@ -69,7 +71,7 @@ def main() -> None:
         print("[!] Пароль не может быть пустым.")
         sys.exit(1)
 
-    asyncio.run(create_superuser(name, email, password))
+    asyncio.run(create_superuser(name, surname, email, password))
 
 
 if __name__ == "__main__":
