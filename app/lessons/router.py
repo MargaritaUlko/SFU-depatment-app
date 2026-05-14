@@ -37,6 +37,6 @@ async def lessons_by_teacher(
 async def sync(
     db: AsyncSession = Depends(get_db),
     # _=Depends(require_roles(Role.admin)),
-    _=Depends(require_roles(Role.dean)),
+    _=Depends(require_roles(Role.dean, Role.admin)),
 ):
     return await sync_lessons(db)
