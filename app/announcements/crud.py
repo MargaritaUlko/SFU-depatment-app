@@ -72,7 +72,7 @@ async def create_announcement_(
     db.add(ann)
     await db.commit()
     await db.refresh(ann)
-    return ann
+    return await get_announcement_(db, ann.id)
 
 
 async def get_announcement_(db: AsyncSession, ann_id: int) -> Optional[Announcement]:
@@ -133,8 +133,7 @@ async def update_announcement_(
     if data.expires_at is not None:
         ann.expires_at = data.expires_at
     await db.commit()
-    await db.refresh(ann)
-    return ann
+    return await get_announcement_(db, ann.id)
 
 
 async def delete_announcement_(db: AsyncSession, ann: Announcement) -> None:

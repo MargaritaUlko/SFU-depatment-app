@@ -53,7 +53,7 @@ async def create_announcement(
             data.target_group_ids = [
                 gid for gid in data.target_group_ids if gid in teacher_groups_ids
             ]
-    return await create_announcement_(db, data, user)
+    return await create_announcement_(db, data, user.id)
 
 
 async def get_announcement(db: AsyncSession, ann_id: int) -> Optional[Announcement]:

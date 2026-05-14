@@ -1,13 +1,16 @@
-import uuid
 from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.messages.model import Message
-from app.users.model import User, Role
 from app.messages.schemas import MessageCreate
+from app.users.model import Role, User
 
 
-async def create_message(db: AsyncSession, data: MessageCreate, sender_id: uuid.UUID) -> Message:
+async def create_message(
+    db: AsyncSession, data: MessageCreate, sender_id: int
+) -> Message:
     msg = Message(**data.model_dump(), sender_id=sender_id)
     db.add(msg)
     await db.commit()
@@ -27,6 +30,6 @@ async def get_messages(db: AsyncSession, user: User) -> List[Message]:
     return list(result.scalars().all())
 
 
-async def get_message(db: AsyncSession, message_id: uuid.UUID) -> Optional[Message]:
+async def get_message(db: AsyncSession, message_id: int) -> Optional[Message]:
     result = await db.execute(select(Message).where(Message.id == message_id))
     return result.scalar_one_or_none()
