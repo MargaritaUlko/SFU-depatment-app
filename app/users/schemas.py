@@ -23,6 +23,7 @@ class UserRead(BaseModel):
     email: EmailStr
     role: Role
     is_active: bool
+    avatar: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

@@ -38,6 +38,7 @@ class User(Base, TimestampMixin):
     hashed_password = Column(String(255), nullable=False)
     role = Column(Enum(Role, name="role"), default=Role.student, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    avatar = Column(String(500), nullable=True)
     student_profiles = relationship(
         "StudentProfile", back_populates="user", uselist=False
     )
