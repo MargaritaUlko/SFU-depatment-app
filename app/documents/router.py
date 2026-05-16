@@ -82,7 +82,7 @@ async def upload_document(
 
 @router.get("/{doc_id}", response_model=DocumentRead)
 async def get_document_metadata(
-    doc_id: uuid.UUID,
+    doc_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -96,7 +96,7 @@ async def get_document_metadata(
 
 @router.get("/{doc_id}/download")
 async def download_document(
-    doc_id: uuid.UUID,
+    doc_id: int,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

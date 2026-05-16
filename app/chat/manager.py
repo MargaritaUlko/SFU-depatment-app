@@ -8,7 +8,6 @@ class ConnectionManager:
         self._connections: dict[int, list[WebSocket]] = defaultdict(list)
 
     async def connect(self, chat_id: int, ws: WebSocket) -> None:
-        await ws.accept()
         self._connections[chat_id].append(ws)
 
     def disconnect(self, chat_id: int, ws: WebSocket) -> None:

@@ -102,6 +102,56 @@ Chat
 - **ChatMessage** — сообщение. Сохраняется в БД и в реальном времени рассылается всем подключённым через WebSocket.
 - Соединение: `WS /api/v1/chats/{id}/ws?token=...` — авторизация через access token в query-параметре.
 
+#### Подключение к чату (для фронта)
+
+**1. Получить чат**
+- Личка: `POST /api/v1/chats/direct/{user_id}` — возвращает `{id, type, members, ...}`
+- Групповой: `POST /api/v1/chats/group` — `{"group_id": 1, "member_ids": [1, 2, 3]}`
+- Список своих чатов: `GET /api/v1/chats`
+
+**2. Подключиться по WebSocket**
+```
+ws://HOST/api/v1/chats/{chat_id}/ws?token=<access_token>
+```
+- `access_token` — тот же JWT, что используется в заголовке `Authorization: Bearer ...`
+- Передаётся **в query-параметре** `token`, а не в заголовке (WebSocket API браузера не позволяет задавать кастомные заголовки)
+
+**3. Отправить сообщение**
+
+Отправить plain text-строку (не JSON):
+```
+Привет!
+```
+
+**4. Входящие сообщения**
+
+Все участники чата получают JSON:
+```json
+{
+  "id": 42,
+  "chat_id": 9,
+  "sender_id": 3,
+  "body": "Привет!",
+  "created_at": "2026-05-16T12:35:00.123456"
+}
+```
+
+**Коды закрытия соединения:**
+| Код | Причина |
+|-----|---------|
+| `4001` | Невалидный или просроченный токен |
+| `4003` | Пользователь не является участником чата |
+
+**Пример на JS:**
+```js
+const ws = new WebSocket(
+  `ws://localhost:8000/api/v1/chats/${chatId}/ws?token=${accessToken}`
+);
+ws.onmessage = (e) => console.log(JSON.parse(e.data));
+ws.onopen = () => ws.send("Привет!");
+ws.onclose = (e) => console.log("Closed:", e.code);
+```
+
 ### Прочее
 
 - **Document** — файл с полем `visibility` (список ролей, кому виден).

@@ -1,10 +1,11 @@
-import uuid
 from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.documents.model import Document
-from app.users.model import User
 from app.documents.schemas import DocumentUpdate
+from app.users.model import User
 
 
 async def create_document(
@@ -15,7 +16,7 @@ async def create_document(
     visibility: List[str],
     file_path: str,
     file_name: str,
-    uploader_id: uuid.UUID,
+    uploader_id: int,
 ) -> Document:
     doc = Document(
         title=title,
@@ -42,12 +43,14 @@ async def get_documents(db: AsyncSession, user: User) -> List[Document]:
     return [d for d in docs if _user_can_see(d, user)]
 
 
-async def get_document(db: AsyncSession, doc_id: uuid.UUID) -> Optional[Document]:
+async def get_document(db: AsyncSession, doc_id: int) -> Optional[Document]:
     result = await db.execute(select(Document).where(Document.id == doc_id))
     return result.scalar_one_or_none()
 
 
-async def update_document(db: AsyncSession, doc: Document, data: DocumentUpdate) -> Document:
+async def update_document(
+    db: AsyncSession, doc: Document, data: DocumentUpdate
+) -> Document:
     if data.title is not None:
         doc.title = data.title
     if data.description is not None:

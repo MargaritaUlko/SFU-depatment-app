@@ -6,6 +6,11 @@ from pydantic import BaseModel
 from app.chat.model import ChatType
 
 
+class GroupChatCreate(BaseModel):
+    group_id: int
+    member_ids: List[int]
+
+
 class ChatMemberRead(BaseModel):
     user_id: int
     model_config = {"from_attributes": True}
