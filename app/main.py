@@ -38,6 +38,7 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     os.makedirs(os.path.join(settings.UPLOAD_DIR, "events"), exist_ok=True)
     os.makedirs(os.path.join(settings.UPLOAD_DIR, "documents"), exist_ok=True)
+    os.makedirs(os.path.join(settings.UPLOAD_DIR, "avatars"), exist_ok=True)
     yield
 
 

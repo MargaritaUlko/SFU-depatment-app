@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,6 +8,7 @@ from app.core.email import send_credentials_email
 from app.core.security import generate_password, verify_password
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
+from app.documents.crud import get_document
 from app.users.crud import (
     create_user,
     get_user,
@@ -16,6 +18,8 @@ from app.users.crud import (
 )
 from app.users.model import Role, User
 from app.users.schemas import UserCreate, UserPasswordChange, UserRead, UserUpdate
+
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -117,6 +121,26 @@ async def change_password(
     if current_user.role != Role.admin and not verify_password(data.old_password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль")
     await update_user(db, user, UserUpdate(password=data.new_password))
+
+
+@router.patch("/me/avatar", response_model=UserRead)
+async def set_avatar_from_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user = await get_user(db, current_user.id)
+
+    doc = await get_document(db, document_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
+    if Path(doc.file_name).suffix.lower() not in _IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл не является изображением")
+
+    user.avatar = doc.file_path
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
