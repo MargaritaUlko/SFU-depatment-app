@@ -44,15 +44,28 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./app:/app/app
+      - ./load_tests:/app/load_tests
     ports:
       - "8000:8000"
-      - "8089:8089"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  locust:
+    image: locustio/locust
+    container_name: department_locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./load_tests:/mnt/locust
+    command: -f /mnt/locust/locustfile.py --host http://api:8000
+    depends_on:
+      - api
+    profiles:
+      - load
 
   worker:
     build:

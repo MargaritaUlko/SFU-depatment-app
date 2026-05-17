@@ -105,3 +105,15 @@ app.include_router(attendance_router, prefix=PREFIX)
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/metrics", tags=["health"])
+async def metrics():
+    import psutil
+    proc = psutil.Process()
+    return {
+        "cpu_percent": psutil.cpu_percent(interval=None),
+        "ram_used_mb": round(proc.memory_info().rss / 1024 / 1024, 1),
+        "ram_total_mb": round(psutil.virtual_memory().total / 1024 / 1024, 1),
+        "ram_system_percent": psutil.virtual_memory().percent,
+    }

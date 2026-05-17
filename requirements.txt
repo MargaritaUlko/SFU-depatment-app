@@ -15,6 +15,7 @@ greenlet==3.1.1
 pydantic[email]
 bcrypt==4.0.1
 sqladmin>=0.18.0
+psutil>=5.9.0
 itsdangerous>=2.2.0
 locust>=2.20.0
 celery[redis]>=5.4.0
