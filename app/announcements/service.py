@@ -6,6 +6,9 @@ import aiofiles
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.announcements.crud import (
     archive_announcement_,
     create_announcement_,
@@ -23,14 +26,14 @@ from app.announcements.schemas import (
 )
 from app.core.config import settings
 from app.users.crud import get_groups_by_teacher
-from app.users.model import Role, User
+from app.users.model import Role, StudentProfile, TeacherProfile, User
 
 
 async def get_announcements(
     db: AsyncSession, filters: AnnouncementFilters, current_user: User
 ) -> List[Announcement]:
     if current_user.role in (Role.student, Role.headman):
-        profile = current_user.student_profile
+        profile = current_user.student_profiles
         filters.group_name = profile.group.name
         filters.flow_name = profile.group.stream.name if profile.group.stream else None
     elif current_user.role in (Role.teacher, Role.deputy_head):

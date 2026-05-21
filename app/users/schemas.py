@@ -27,13 +27,15 @@ class UserRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    # model_config = {"from_attributes": True}
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    surname: Optional[str] = None
+    patronymic: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
+    avatar: Optional[str] = None
 
 
 class UserPasswordChange(BaseModel):

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
 from app.core.security import hash_password
+import app.db.models  # noqa: F401 — регистрирует все модели в SQLAlchemy
 from app.users.model import Role, User
 
 TEST_USERS = [

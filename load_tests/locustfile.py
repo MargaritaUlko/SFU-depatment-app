@@ -37,6 +37,7 @@ from locust.exception import StopUser
 
 # ── Мониторинг CPU и памяти сервера ──────────────────────────────────────────
 
+
 class _ServerMonitor:
     """
     Каждые INTERVAL секунд опрашивает GET /metrics на целевом сервере
@@ -105,15 +106,16 @@ def on_test_start(environment, **kwargs):
 def on_test_stop(environment, **kwargs):
     _monitor.stop()
 
-# ── Учётные данные (можно переопределить через env) ───────────────────────────
-STUDENT_EMAIL    = os.getenv("STUDENT_EMAIL",    "student@test.com")
-STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "student123")
-TEACHER_EMAIL    = os.getenv("TEACHER_EMAIL",    "teacher@test.com")
-TEACHER_PASSWORD = os.getenv("TEACHER_PASSWORD", "teacher123")
-ADMIN_EMAIL      = os.getenv("ADMIN_EMAIL",      "admin@test.com")
-ADMIN_PASSWORD   = os.getenv("ADMIN_PASSWORD",   "admin123")
 
-PREFIX = "/api/v1"
+# ── Учётные данные (можно переопределить через env) ───────────────────────────
+STUDENT_EMAIL = os.getenv("STUDENT_EMAIL", "student@test.com")
+STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "student123")
+TEACHER_EMAIL = os.getenv("TEACHER_EMAIL", "teacher@test.com")
+TEACHER_PASSWORD = os.getenv("TEACHER_PASSWORD", "teacher123")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@test.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+PREFIX = os.getenv("PREFIX", "/api/v1")
 
 # Общий пул ID загруженных документов: TeacherUser заполняет, DocHeavyUser читает
 _doc_ids: list[int] = []
@@ -121,6 +123,7 @@ _doc_ids_lock = Lock()
 
 
 # ── Утилиты ───────────────────────────────────────────────────────────────────
+
 
 def _rnd(n: int = 8) -> str:
     return "".join(random.choices(string.ascii_lowercase, k=n))
@@ -149,6 +152,7 @@ def _fake_file(size_kb: int = 50) -> bytes:
 
 
 # ── TaskSets ──────────────────────────────────────────────────────────────────
+
 
 class StudentTasks(TaskSet):
     token: str | None = None
@@ -294,6 +298,7 @@ class DocHeavyTasks(TaskSet):
     25% пользователей только скачивают файлы — максимальная нагрузка на ФС.
     Сравните p95 [file] с p95 [meta] из StudentTasks.
     """
+
     token: str | None = None
 
     def on_start(self):
@@ -373,6 +378,7 @@ class AdminTasks(TaskSet):
 
 # ── User-классы ───────────────────────────────────────────────────────────────
 
+
 class HealthUser(HttpUser):
     weight = 3
     wait_time = between(0.1, 0.3)
@@ -407,6 +413,7 @@ class AdminUser(HttpUser):
 
 
 # ── Хук завершения: вердикт по S3 ────────────────────────────────────────────
+
 
 @events.quitting.add_listener
 def on_quit(environment, **kwargs):
