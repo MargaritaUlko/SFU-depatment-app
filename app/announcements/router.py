@@ -47,7 +47,9 @@ async def list_announcements(
 async def create_announcement_endpoint(
     data: AnnouncementCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(
+        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head)
+    ),
 ):
     return await create_announcement(db, data, current_user)
 
@@ -71,7 +73,9 @@ async def update_announcement_endpoint(
     ann_id: int,
     data: AnnouncementUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.headman, Role.deputy_head, Role.dean)),
+    current_user=Depends(
+        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head)
+    ),
 ):
     ann = await get_announcement(db, ann_id)
     return await update_announcement(db, ann, data, current_user)
@@ -81,7 +85,9 @@ async def update_announcement_endpoint(
 async def archive_announcement_endpoint(
     ann_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.headman, Role.deputy_head, Role.dean, Role.admin)),
+    current_user=Depends(
+        require_roles(Role.headman, Role.deputy_head, Role.dean, Role.admin)
+    ),
 ):
     return await archive_announcement(db, ann_id, current_user)
 

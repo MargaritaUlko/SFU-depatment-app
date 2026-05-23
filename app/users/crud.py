@@ -7,7 +7,7 @@ from app.core.security import hash_password, verify_password
 from app.groups.model import Group
 from app.lessons.model import Lesson
 from app.users.model import Role, User
-from app.users.schemas import UserCreate, UserUpdate
+from app.users.schemas import UserCreate
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -40,13 +40,16 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     return user
 
 
-async def update_user(db: AsyncSession, user: User, data: UserUpdate) -> User:
-    if data.name is not None:
-        user.name = data.name
-    if data.email is not None:
-        user.email = data.email
-    if data.password is not None:
-        user.hashed_password = hash_password(data.password)
+async def update_user(db: AsyncSession, user: User, data: dict) -> User:
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def update_user_password(db: AsyncSession, user: User, data: dict) -> User:
+    user.password = data.new_password
     await db.commit()
     await db.refresh(user)
     return user

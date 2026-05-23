@@ -68,7 +68,7 @@ async def refresh_tokens(data: RefreshRequest, db: AsyncSession = Depends(get_db
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен отозван или истёк"
         )
 
-    user_id = uuid.UUID(payload["sub"])
+    user_id = int(payload["sub"])
     user = await get_user(db, user_id)
     if not user or not user.is_active:
         raise HTTPException(

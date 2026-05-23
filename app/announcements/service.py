@@ -4,9 +4,8 @@ from typing import List, Optional
 
 import aiofiles
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.announcements.crud import (
@@ -25,6 +24,7 @@ from app.announcements.schemas import (
     AnnouncementUpdate,
 )
 from app.core.config import settings
+from app.groups.model import Group
 from app.users.crud import get_groups_by_teacher
 from app.users.model import Role, StudentProfile, TeacherProfile, User
 
@@ -33,14 +33,37 @@ async def get_announcements(
     db: AsyncSession, filters: AnnouncementFilters, current_user: User
 ) -> List[Announcement]:
     if current_user.role in (Role.student, Role.headman):
-        profile = current_user.student_profiles
-        filters.group_name = profile.group.name
-        filters.flow_name = profile.group.stream.name if profile.group.stream else None
+        result = await db.execute(
+            select(StudentProfile)
+            .where(StudentProfile.user_id == current_user.id)
+            .options(selectinload(StudentProfile.group).selectinload(Group.stream))
+        )
+        profile = result.scalar_one_or_none()
+        if profile and profile.group:
+            filters.group_name = profile.group.name
+            filters.flow_name = profile.group.stream.name if profile.group.stream else None
     elif current_user.role in (Role.teacher, Role.deputy_head):
-        profile = current_user.teacher_profile
+        result = await db.execute(
+            select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+        )
+        profile = result.scalar_one_or_none()
         filters.department = profile.department
 
     return await get_announcements_(db, filters)
+
+
+# async def get_announcements(
+#     db: AsyncSession, filters: AnnouncementFilters, current_user: User
+# ) -> List[Announcement]:
+#     if current_user.role in (Role.student, Role.headman):
+#         profile = current_user.student_profiles
+#         filters.group_name = profile.group.name
+#         filters.flow_name = profile.group.stream.name if profile.group.stream else None
+#     elif current_user.role in (Role.teacher, Role.deputy_head):
+#         profile = current_user.teacher_profile
+#         filters.department = profile.department
+
+#     return await get_announcements_(db, filters)
 
 
 async def create_announcement(

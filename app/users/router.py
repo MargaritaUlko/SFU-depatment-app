@@ -11,10 +11,12 @@ from app.dependencies import get_current_user, require_roles
 from app.documents.crud import get_document
 from app.users.crud import (
     create_user,
+    delete_user,
     get_user,
     get_user_by_email,
     get_users,
     update_user,
+    update_user_password,
 )
 from app.users.model import Role, User
 from app.users.schemas import UserCreate, UserPasswordChange, UserRead, UserUpdate
@@ -58,7 +60,10 @@ async def admin_create_user(
             await send_credentials_email(data.email, full_name, plain_password)
         except Exception as exc:  # noqa: BLE001
             import logging
-            logging.getLogger(__name__).error("Не удалось отправить письмо %s: %s", data.email, exc)
+
+            logging.getLogger(__name__).error(
+                "Не удалось отправить письмо %s: %s", data.email, exc
+            )
 
     return user
 
@@ -114,13 +119,21 @@ async def change_password(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.id != user_id and current_user.role != Role.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
+        )
     user = await get_user(db, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
-    if current_user.role != Role.admin and not verify_password(data.old_password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль")
-    await update_user(db, user, UserUpdate(password=data.new_password))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    if current_user.role != Role.admin and not verify_password(
+        data.old_password, user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль"
+        )
+    await update_user_password(db, user, data)
 
 
 @router.patch("/me/avatar", response_model=UserRead)
@@ -133,9 +146,14 @@ async def set_avatar_from_document(
 
     doc = await get_document(db, document_id)
     if not doc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден"
+        )
     if Path(doc.file_name).suffix.lower() not in _IMAGE_EXTENSIONS:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл не является изображением")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл не является изображением",
+        )
 
     user.avatar = doc.file_path
     await db.commit()
@@ -149,4 +167,5 @@ async def delete_user_endpoint(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(Role.admin)),
 ):
-    pass
+    user = get_user(user_id)
+    delete_user(user)
