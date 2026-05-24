@@ -35,9 +35,8 @@ async def list_documents(
     return await get_documents(db, current_user)
 
 
-async def _parse_and_validate_visibility(
-    raw: str, db: AsyncSession
-) -> List[str]:
+# TODO: переделать
+async def _parse_and_validate_visibility(raw: str, db: AsyncSession) -> List[str]:
     import json
 
     try:
@@ -102,6 +101,7 @@ async def _parse_and_validate_visibility(
     return vis_list
 
 
+# TODO: переделать
 @router.post("", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     title: str = Form(...),
