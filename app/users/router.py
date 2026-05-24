@@ -1,14 +1,14 @@
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email import send_credentials_email
 from app.core.security import generate_password, verify_password
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
-from app.documents.crud import get_document
 from app.users.crud import (
     create_user,
     delete_user,
@@ -20,8 +20,7 @@ from app.users.crud import (
 )
 from app.users.model import Role, User
 from app.users.schemas import UserCreate, UserPasswordChange, UserRead, UserUpdate
-
-_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}
+from app.users.service import set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -137,28 +136,33 @@ async def change_password(
 
 
 @router.patch("/me/avatar", response_model=UserRead)
-async def set_avatar_from_document(
-    document_id: int,
+async def upload_avatar(
+    file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     user = await get_user(db, current_user.id)
+    return await set_avatar(db, user, file)
 
-    doc = await get_document(db, document_id)
-    if not doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден"
-        )
-    if Path(doc.file_name).suffix.lower() not in _IMAGE_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл не является изображением",
-        )
 
-    user.avatar = doc.file_path
-    await db.commit()
-    await db.refresh(user)
-    return user
+@router.get("/{user_id}/avatar")
+async def get_avatar(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    user = await get_user(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    if not user.avatar or not Path(user.avatar).exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Аватар не установлен"
+        )
+    suffix = Path(user.avatar).suffix.lstrip(".").lower()
+    media_type = "image/jpeg" if suffix == "jpg" else f"image/{suffix}"
+    return FileResponse(path=user.avatar, media_type=media_type)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -168,4 +172,4 @@ async def delete_user_endpoint(
     _=Depends(require_roles(Role.admin)),
 ):
     user = get_user(user_id)
-    delete_user(user)
+    delete_user(db, user)

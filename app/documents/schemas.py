@@ -3,9 +3,6 @@ from typing import Optional, List
 
 from pydantic import BaseModel
 
-from app.users.model import Role
-
-
 class DocumentRead(BaseModel):
     id: int
     title: str
@@ -24,4 +21,4 @@ class DocumentUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    visibility: Optional[List[Role]] = None
+    visibility: Optional[List[str]] = None

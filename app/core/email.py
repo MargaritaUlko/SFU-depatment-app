@@ -32,4 +32,5 @@ async def send_credentials_email(to: str, full_name: str, password: str) -> None
             },
             timeout=10,
         )
+        logger.info("Resend response %s: %s", response.status_code, response.text)
         response.raise_for_status()

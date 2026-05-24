@@ -49,7 +49,7 @@ async def update_user(db: AsyncSession, user: User, data: dict) -> User:
 
 
 async def update_user_password(db: AsyncSession, user: User, data: dict) -> User:
-    user.password = data.new_password
+    user.hashed_password = hash_password(data.new_password)
     await db.commit()
     await db.refresh(user)
     return user
@@ -57,6 +57,13 @@ async def update_user_password(db: AsyncSession, user: User, data: dict) -> User
 
 async def update_user_role(db: AsyncSession, user: User, role: Role) -> User:
     user.role = role
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def update_user_avatar(db: AsyncSession, user: User, file_path: str) -> User:
+    user.avatar = file_path
     await db.commit()
     await db.refresh(user)
     return user

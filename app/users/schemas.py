@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.users.model import Role
 
@@ -23,7 +23,7 @@ class UserRead(BaseModel):
     email: EmailStr
     role: Role
     is_active: bool
-    avatar: Optional[str] = None
+    avatar: Optional[str] = Field(default=None, json_schema_extra={"example": None})
     created_at: datetime
     updated_at: datetime
 
@@ -35,7 +35,6 @@ class UserUpdate(BaseModel):
     surname: Optional[str] = None
     patronymic: Optional[str] = None
     email: Optional[EmailStr] = None
-    avatar: Optional[str] = None
 
 
 class UserPasswordChange(BaseModel):

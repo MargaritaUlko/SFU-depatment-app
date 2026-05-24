@@ -154,7 +154,11 @@ ws.onclose = (e) => console.log("Closed:", e.code);
 
 ### Прочее
 
-- **Document** — файл с полем `visibility` (список ролей, кому виден).
+- **Document** — файл с полем `visibility`. Поддерживает гранулярную видимость:
+  - `role:student` / `role:teacher` / ... — по роли
+  - `group:5` — конкретная группа
+  - `stream:2` — конкретный поток
+  - Простые строки без префикса (legacy): `student`, `teacher` и т.д.
 - **Notification** — системное уведомление, привязывается к Announcement или Event.
 
 ---
@@ -168,10 +172,10 @@ ws.onclose = (e) => console.log("Closed:", e.code);
 ### Преподаватель / деканат / староста (`teacher`, `dean`, `headman`, `deputy_head`)
 Самостоятельная регистрация недоступна — аккаунт создаёт только `admin`:
 
-1. `POST /users` (admin) — передаёт `email`, `name`, `surname`, нужную роль; пароль **не указывается**
+1. `POST /users` (admin) — передаёт `email`, `name`, `surname`, `patronymic` (опц.), нужную роль; поле `password` игнорируется
 2. Бэк генерирует случайный пароль (`generate_password`, 12 символов)
 3. Создаёт пользователя в БД
-4. Отправляет письмо на указанный email с логином и паролем (`send_credentials_email`)
+4. Отправляет письмо на указанный email с логином и паролем (`send_credentials_email`); ошибка отправки не прерывает создание — только логируется
 5. Пользователь логинится через `POST /auth/login` полученными кредами
 
 ### Общий механизм токенов
@@ -186,14 +190,26 @@ ws.onclose = (e) => console.log("Closed:", e.code);
 ## Права доступа по модулям
 
 ### Users `/users`
-| Действие | Роли |
-|----------|------|
-| Создать пользователя | admin |
-| Список пользователей | headman, admin |
-| Просмотр профиля | любой авторизованный |
-| Редактировать профиль | сам пользователь, admin |
-| Изменить роль | admin |
-| Удалить пользователя | admin |
+| Действие | Метод | Роли |
+|----------|-------|------|
+| Создать пользователя | `POST /users` | admin |
+| Список пользователей | `GET /users` | headman, admin |
+| Просмотр профиля | `GET /users/{id}` | любой авторизованный |
+| Редактировать профиль | `PUT /users/{id}` | сам пользователь, admin |
+| Сменить пароль | `PATCH /users/{id}/password` | сам пользователь, admin |
+| Загрузить аватар | `PATCH /users/me/avatar` | любой авторизованный |
+| Получить аватар | `GET /users/{id}/avatar` | любой авторизованный |
+| Удалить пользователя | `DELETE /users/{id}` | admin |
+
+`UserRead` содержит: `id`, `name`, `surname`, `patronymic`, `email`, `role`, `is_active`, `avatar`, `created_at`, `updated_at`.
+
+`UserUpdate` позволяет изменить только: `name`, `surname`, `patronymic`, `email` (роль и пароль — отдельными эндпоинтами).
+
+Аватары сохраняются в `UPLOAD_DIR/avatars/`. При загрузке нового аватара старый файл удаляется с диска. Допустимые форматы: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`.
+
+Логика создания (`POST /users`):
+- Роли `headman`, `teacher`, `dean`, `deputy_head` — пароль генерируется автоматически и отправляется на email (`send_credentials_email`). Поле `password` в запросе игнорируется.
+- Роли `student`, `admin` — пароль передаётся явно в теле запроса.
 
 ### Streams `/streams`
 | Действие | Роли |
@@ -250,13 +266,18 @@ ws.onclose = (e) => console.log("Closed:", e.code);
 | WebSocket (отправка/приём) | участник чата (token в query) |
 
 ### Documents `/documents`
-| Действие | Роли |
-|----------|------|
-| Список | любой авторизованный (фильтр по `visibility`) |
-| Загрузить | teacher, headman, admin |
-| Просмотр / скачать | любой авторизованный, у кого роль в `visibility` |
-| Изменить метаданные | headman, admin |
-| Удалить | admin |
+| Действие | Метод | Роли |
+|----------|-------|------|
+| Список | `GET /documents` | любой авторизованный (фильтр по `visibility`) |
+| Загрузить | `POST /documents` | teacher, deputy_head, admin |
+| Просмотр метаданных | `GET /documents/{id}` | любой авторизованный, у кого доступ по `visibility` |
+| Скачать файл | `GET /documents/{id}/download` | любой авторизованный, у кого доступ по `visibility` |
+| Изменить метаданные | `PUT /documents/{id}` | headman, admin |
+| Удалить | `DELETE /documents/{id}` | admin |
+
+`visibility` принимается как строка через `Form` (multipart): можно JSON-массив `["role:student","group:5"]` или список через запятую `role:student, group:5`. Валидируется на сервере — несуществующие группы/потоки возвращают 400.
+
+`DocumentRead` содержит: `id`, `title`, `description`, `category`, `visibility`, `file_name`, `uploader_id`, `created_at`, `updated_at`.
 
 ---
 
@@ -264,5 +285,6 @@ ws.onclose = (e) => console.log("Closed:", e.code);
 
 | Место | Проблема |
 |-------|----------|
-| `users` `PATCH /role`, `DELETE` | эндпоинты объявлены, но тело не реализовано (`pass`) |
+| `users/crud.py` `update_user_password` | устанавливает `user.password` вместо `user.hashed_password` — пароль не хешируется |
+| `users/router.py` | нет эндпоинта `PATCH /{id}/role` для смены роли (функция `update_user_role` в crud есть, роутер не подключён) |
 | `dependencies.py` | TODO: зависимость для преподавателя → его группы |
