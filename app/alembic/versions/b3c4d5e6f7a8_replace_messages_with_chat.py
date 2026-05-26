@@ -50,6 +50,7 @@ def downgrade() -> None:
     op.drop_table('chats')
     op.execute("DROP TYPE IF EXISTS chattype")
 
+    op.execute("DROP TYPE IF EXISTS targettype")
     op.create_table(
         'messages',
         sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),

@@ -12,14 +12,19 @@ from app.dependencies import get_current_user, require_roles
 from app.users.crud import (
     create_user,
     delete_user,
+    get_teachers,
     get_user,
     get_user_by_email,
-    get_users,
+    get_visible_users,
+    search_users_by_surname,
+    update_dean_profile,
+    update_student_profile,
+    update_teacher_profile,
     update_user,
     update_user_password,
 )
 from app.users.model import Role, User
-from app.users.schemas import UserCreate, UserPasswordChange, UserRead, UserUpdate
+from app.users.schemas import DeanProfileUpdate, StudentProfileUpdate, TeacherProfileUpdate, TeacherPublicRead, UserCreate, UserPasswordChange, UserRead, UserUpdate
 from app.users.service import set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -67,28 +72,49 @@ async def admin_create_user(
     return user
 
 
+@router.get("/teachers", response_model=List[TeacherPublicRead])
+async def list_teachers(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    rows = await get_teachers(db, skip=skip, limit=limit)
+    result = []
+    for user, profile in rows:
+        result.append(TeacherPublicRead(
+            id=user.id,
+            name=user.name,
+            surname=user.surname,
+            patronymic=user.patronymic,
+            role=user.role,
+            avatar=user.avatar,
+            department=profile.department if profile else None,
+            positions=profile.positions if profile else None,
+            cabinet=profile.cabinet if profile else None,
+        ))
+    return result
+
+
 @router.get("", response_model=List[UserRead])
 async def list_users(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.headman, Role.admin)),
+    current_user: User = Depends(get_current_user),
 ):
-    return await get_users(db, skip=skip, limit=limit)
+    return await get_visible_users(db, current_user, skip=skip, limit=limit)
 
 
-@router.get("/{user_id}", response_model=UserRead)
-async def get_user_profile(
-    user_id: int,
+@router.get("/search", response_model=List[UserRead])
+async def search_users(
+    surname: str,
+    skip: int = 0,
+    limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    _=Depends(get_current_user),
 ):
-    user = await get_user(db, user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-        )
-    return user
+    return await search_users_by_surname(db, surname, skip=skip, limit=limit)
 
 
 @router.put("/{user_id}", response_model=UserRead)
@@ -165,11 +191,49 @@ async def get_avatar(
     return FileResponse(path=user.avatar, media_type=media_type)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/student-profile", status_code=status.HTTP_204_NO_CONTENT)
+async def update_my_student_profile(
+    data: StudentProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in (Role.student, Role.headman):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    await update_student_profile(db, current_user, data)
+
+
+@router.patch("/me/teacher-profile", status_code=status.HTTP_204_NO_CONTENT)
+async def update_my_teacher_profile(
+    data: TeacherProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in (Role.teacher, Role.deputy_head):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    await update_teacher_profile(db, current_user, data)
+
+
+@router.patch("/me/dean-profile", status_code=status.HTTP_204_NO_CONTENT)
+async def update_my_dean_profile(
+    data: DeanProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != Role.dean:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    await update_dean_profile(db, current_user, data)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 async def delete_user_endpoint(
     user_id: int,
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(Role.admin)),
 ):
-    user = get_user(user_id)
-    delete_user(db, user)
+    user = await get_user(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    await delete_user(db, user)
+    return {"detail": "Пользователь успешно удалён"}

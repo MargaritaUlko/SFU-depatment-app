@@ -24,6 +24,10 @@ class ChatRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ChatMessageCreate(BaseModel):
+    body: str
+
+
 class ChatMessageRead(BaseModel):
     id: int
     chat_id: int

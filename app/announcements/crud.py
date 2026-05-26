@@ -54,10 +54,14 @@ async def create_announcement_(
 ) -> Announcement:
     groups, streams = [], []
     if data.target_group_ids:
-        result = await db.execute(select(Group).where(Group.id.in_(data.target_group_ids)))
+        result = await db.execute(
+            select(Group).where(Group.id.in_(data.target_group_ids))
+        )
         groups = list(result.scalars().all())
     if data.target_stream_ids:
-        result = await db.execute(select(Stream).where(Stream.id.in_(data.target_stream_ids)))
+        result = await db.execute(
+            select(Stream).where(Stream.id.in_(data.target_stream_ids))
+        )
         streams = list(result.scalars().all())
 
     ann = Announcement(
@@ -73,6 +77,21 @@ async def create_announcement_(
     await db.commit()
     await db.refresh(ann)
     return await get_announcement_(db, ann.id)
+
+
+async def get_user_announcements_(
+    db: AsyncSession,
+    author_id: int,
+) -> Optional[Announcement]:
+    result = await db.execute(
+        select(Announcement)
+        .where(Announcement.author_id == author_id)
+        .options(
+            selectinload(Announcement.attachments),
+            selectinload(Announcement.author).selectinload(User.teacher_profile),
+        )
+    )
+    return result.scalars().all()
 
 
 async def get_announcement_(db: AsyncSession, ann_id: int) -> Optional[Announcement]:
@@ -123,10 +142,14 @@ async def update_announcement_(
     if data.content is not None:
         ann.content = data.content
     if data.target_group_ids is not None:
-        result = await db.execute(select(Group).where(Group.id.in_(data.target_group_ids)))
+        result = await db.execute(
+            select(Group).where(Group.id.in_(data.target_group_ids))
+        )
         ann.target_groups = list(result.scalars().all())
     if data.target_stream_ids is not None:
-        result = await db.execute(select(Stream).where(Stream.id.in_(data.target_stream_ids)))
+        result = await db.execute(
+            select(Stream).where(Stream.id.in_(data.target_stream_ids))
+        )
         ann.target_streams = list(result.scalars().all())
     if data.publish_at is not None:
         ann.publish_at = data.publish_at

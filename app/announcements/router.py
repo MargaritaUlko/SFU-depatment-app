@@ -16,6 +16,7 @@ from app.announcements.service import (
     delete_announcement,
     get_announcement,
     get_announcements,
+    get_user_announcements,
     restore_announcement,
     update_announcement,
 )
@@ -41,6 +42,17 @@ async def list_announcements(
         limit=limit,
     )
     return await get_announcements(db, filters, current_user)
+
+
+@router.get("/my", response_model=List[AnnouncementOut])
+async def list_user_announcements(
+    status: Optional[AnnouncementStatus] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return await get_user_announcements(db, current_user)
 
 
 @router.post("", response_model=AnnouncementOut, status_code=status.HTTP_201_CREATED)

@@ -7,6 +7,11 @@ from sqlalchemy.orm import selectinload
 from app.chat.model import Chat, ChatMember, ChatMessage, ChatType
 
 
+async def get_all_chats(db: AsyncSession) -> List[Chat]:
+    result = await db.execute(select(Chat).options(selectinload(Chat.members)))
+    return list(result.scalars().all())
+
+
 async def get_user_chats(db: AsyncSession, user_id: int) -> List[Chat]:
     result = await db.execute(
         select(Chat)

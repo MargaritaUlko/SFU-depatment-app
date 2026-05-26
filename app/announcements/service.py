@@ -14,6 +14,7 @@ from app.announcements.crud import (
     delete_announcement_,
     get_announcement_,
     get_announcements_,
+    get_user_announcements_,
     restore_announcement_,
     update_announcement_,
 )
@@ -41,7 +42,9 @@ async def get_announcements(
         profile = result.scalar_one_or_none()
         if profile and profile.group:
             filters.group_name = profile.group.name
-            filters.flow_name = profile.group.stream.name if profile.group.stream else None
+            filters.flow_name = (
+                profile.group.stream.name if profile.group.stream else None
+            )
     elif current_user.role in (Role.teacher, Role.deputy_head):
         result = await db.execute(
             select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
@@ -64,6 +67,12 @@ async def get_announcements(
 #         filters.department = profile.department
 
 #     return await get_announcements_(db, filters)
+
+
+async def get_user_announcements(
+    db: AsyncSession, current_user: User
+) -> List[Announcement]:
+    return await get_user_announcements_(db, current_user.id)
 
 
 async def create_announcement(

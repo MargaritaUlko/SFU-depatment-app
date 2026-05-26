@@ -86,7 +86,7 @@ class DeanProfile(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
-    faculty = Column(String(255), nullable=False)
+    faculty = Column(String(255), nullable=False, default="")
     position = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
     cabinet = Column(String(50), nullable=True)

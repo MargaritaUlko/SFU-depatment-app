@@ -11,3 +11,4 @@ from app.lessons.model import Lesson  # noqa
 from app.events.model import Event  # noqa
 from app.notifications.model import Notification, NotificationReceipt  # noqa
 from app.attendance.model import Attendance, AttendanceToken  # noqa
+from app.vkr.model import VKRTopic, VKRStatus  # noqa

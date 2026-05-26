@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import hash_password, verify_password
 from app.groups.model import Group
 from app.lessons.model import Lesson
-from app.users.model import Role, User
-from app.users.schemas import UserCreate
+from app.users.model import DeanProfile, Role, StudentProfile, TeacherProfile, User
+from app.users.schemas import DeanProfileUpdate, StudentProfileUpdate, TeacherProfileUpdate, UserCreate
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -25,6 +25,51 @@ async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[U
     return list(result.scalars().all())
 
 
+async def get_visible_users(
+    db: AsyncSession,
+    current_user: User,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[User]:
+    if current_user.role in (Role.admin, Role.dean, Role.deputy_head):
+        result = await db.execute(select(User).offset(skip).limit(limit))
+        return list(result.scalars().all())
+
+    if current_user.role in (Role.student, Role.headman):
+        group_subq = select(StudentProfile.group_id).where(
+            StudentProfile.user_id == current_user.id
+        )
+        groupmates_subq = select(StudentProfile.user_id).where(
+            StudentProfile.group_id.in_(group_subq)
+        )
+        q = (
+            select(User)
+            .where(User.id.in_(groupmates_subq) | (User.role == Role.teacher))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(q)
+        return list(result.scalars().all())
+
+    if current_user.role == Role.teacher:
+        taught_groups_subq = (
+            select(Lesson.group_id).where(Lesson.teacher_id == current_user.id).distinct()
+        )
+        students_subq = select(StudentProfile.user_id).where(
+            StudentProfile.group_id.in_(taught_groups_subq)
+        )
+        q = (
+            select(User)
+            .where(User.id.in_(students_subq) | (User.role == Role.deputy_head))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(q)
+        return list(result.scalars().all())
+
+    return []
+
+
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
     user = User(
         email=data.email,
@@ -35,9 +80,72 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
         role=data.role,
     )
     db.add(user)
+    await db.flush()
+
+    if data.role in (Role.student, Role.headman) and data.group_id is not None:
+        db.add(StudentProfile(user_id=user.id, group_id=data.group_id))
+    elif data.role in (Role.teacher, Role.deputy_head):
+        db.add(TeacherProfile(user_id=user.id))
+    elif data.role == Role.dean:
+        db.add(DeanProfile(user_id=user.id))
+
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def get_teachers(db: AsyncSession, skip: int = 0, limit: int = 100):
+    q = (
+        select(User, TeacherProfile)
+        .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
+        .where(User.role.in_([Role.teacher, Role.deputy_head]))
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(q)
+    return result.all()
+
+
+async def update_student_profile(db: AsyncSession, user: User, data: StudentProfileUpdate) -> None:
+    result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = StudentProfile(user_id=user.id, group_id=data.group_id or 0)
+        db.add(profile)
+        await db.flush()
+    for field in ("group_id", "phone", "telegram", "vk"):
+        value = getattr(data, field)
+        if value is not None:
+            setattr(profile, field, value)
+    await db.commit()
+
+
+async def update_teacher_profile(db: AsyncSession, user: User, data: TeacherProfileUpdate) -> None:
+    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = TeacherProfile(user_id=user.id)
+        db.add(profile)
+        await db.flush()
+    for field in ("department", "positions", "phone", "cabinet"):
+        value = getattr(data, field)
+        if value is not None:
+            setattr(profile, field, value)
+    await db.commit()
+
+
+async def update_dean_profile(db: AsyncSession, user: User, data: DeanProfileUpdate) -> None:
+    result = await db.execute(select(DeanProfile).where(DeanProfile.user_id == user.id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = DeanProfile(user_id=user.id, faculty=data.faculty or "")
+        db.add(profile)
+        await db.flush()
+    for field in ("faculty", "position", "phone", "cabinet"):
+        value = getattr(data, field)
+        if value is not None:
+            setattr(profile, field, value)
+    await db.commit()
 
 
 async def update_user(db: AsyncSession, user: User, data: dict) -> User:
@@ -81,6 +189,15 @@ async def authenticate_user(
     if not user or not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+async def search_users_by_surname(
+    db: AsyncSession, surname: str, skip: int = 0, limit: int = 100
+) -> List[User]:
+    result = await db.execute(
+        select(User).where(User.surname.ilike(f"%{surname}%")).offset(skip).limit(limit)
+    )
+    return list(result.scalars().all())
 
 
 async def get_groups_by_teacher(db: AsyncSession, teacher_id: int) -> list[Group]:

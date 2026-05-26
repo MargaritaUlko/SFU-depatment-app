@@ -1,9 +1,18 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.users.model import Role
+from app.users.model import Role, TeacherPosition
+
+
+class StudentRegister(BaseModel):
+    name: str
+    surname: str
+    patronymic: Optional[str] = None
+    email: EmailStr
+    password: str
+    group_id: int
 
 
 class UserCreate(BaseModel):
@@ -13,6 +22,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: Optional[str] = None
     role: Role = Role.student
+    group_id: Optional[int] = None
 
 
 class UserRead(BaseModel):
@@ -30,11 +40,44 @@ class UserRead(BaseModel):
     # model_config = {"from_attributes": True}
 
 
+class TeacherPublicRead(BaseModel):
+    id: int
+    name: str
+    surname: str
+    patronymic: Optional[str]
+    role: Role
+    avatar: Optional[str] = None
+    department: Optional[str] = None
+    positions: Optional[List[TeacherPosition]] = None
+    cabinet: Optional[str] = None
+
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     surname: Optional[str] = None
     patronymic: Optional[str] = None
     email: Optional[EmailStr] = None
+
+
+class StudentProfileUpdate(BaseModel):
+    group_id: Optional[int] = None
+    phone: Optional[str] = None
+    telegram: Optional[str] = None
+    vk: Optional[str] = None
+
+
+class TeacherProfileUpdate(BaseModel):
+    department: Optional[str] = None
+    positions: Optional[List[TeacherPosition]] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
+
+
+class DeanProfileUpdate(BaseModel):
+    faculty: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
 
 
 class UserPasswordChange(BaseModel):

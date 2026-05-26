@@ -4,7 +4,7 @@ from app.auth.model import RefreshToken
 from app.documents.model import Document
 from app.events.model import Event
 from app.groups.model import Group
-from app.messages.model import Message
+from app.chat.model import Chat, ChatMessage
 from app.streams.model import Stream
 from app.users.model import User
 
@@ -134,22 +134,35 @@ class GroupAdmin(ModelView, model=Group):
     }
 
 
-class MessageAdmin(ModelView, model=Message):
-    name = "Сообщение"
-    name_plural = "Сообщения"
+class ChatAdmin(ModelView, model=Chat):
+    name = "Чат"
+    name_plural = "Чаты"
+    icon = "fa-solid fa-comments"
+
+    column_list = [Chat.id, Chat.type, Chat.group_id, Chat.created_at]
+    column_sortable_list = [Chat.type, Chat.created_at]
+    column_default_sort = [(Chat.created_at, True)]
+
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+    column_labels = {
+        Chat.id: "ID",
+        Chat.type: "Тип",
+        Chat.group_id: "Группа (ID)",
+        Chat.created_at: "Создан",
+    }
+
+
+class ChatMessageAdmin(ModelView, model=ChatMessage):
+    name = "Сообщение чата"
+    name_plural = "Сообщения чата"
     icon = "fa-solid fa-envelope"
 
-    column_list = [
-        Message.id,
-        Message.sender_id,
-        Message.target_type,
-        Message.target_id,
-        Message.subject,
-        Message.created_at,
-    ]
-    column_searchable_list = [Message.subject]
-    column_sortable_list = [Message.target_type, Message.created_at]
-    column_default_sort = [(Message.created_at, True)]
+    column_list = [ChatMessage.id, ChatMessage.chat_id, ChatMessage.sender_id, ChatMessage.body, ChatMessage.created_at]
+    column_sortable_list = [ChatMessage.created_at]
+    column_default_sort = [(ChatMessage.created_at, True)]
 
     can_create = False
     can_edit = False
@@ -157,13 +170,11 @@ class MessageAdmin(ModelView, model=Message):
     can_export = True
 
     column_labels = {
-        Message.id: "ID",
-        Message.sender_id: "Отправитель",
-        Message.target_type: "Тип цели",
-        Message.target_id: "Цель (ID)",
-        Message.subject: "Тема",
-        Message.body: "Текст",
-        Message.created_at: "Отправлено",
+        ChatMessage.id: "ID",
+        ChatMessage.chat_id: "Чат (ID)",
+        ChatMessage.sender_id: "Отправитель (ID)",
+        ChatMessage.body: "Текст",
+        ChatMessage.created_at: "Отправлено",
     }
 
 

@@ -1,290 +1,206 @@
-# Архитектура портала кафедры
+# Архитектура — Информационный портал кафедры
+
+## Стек
+
+- Python 3.11+, FastAPI, PostgreSQL, SQLAlchemy 2.0 async
+- JWT (access + refresh) через python-jose
+- Файлы: локальная ФС `/uploads`
+- Email: Resend API (`httpx`)
+- Админ-панель: sqladmin
+
+---
+
+## Структура проекта
+
+```
+app/
+├── admin/          — sqladmin: auth.py, views.py
+├── alembic/        — миграции
+├── announcements/  — объявления
+├── attendance/     — посещаемость
+├── auth/           — аутентификация, JWT
+├── chat/           — чаты (WebSocket + REST)
+├── core/           — config, email, security, file_storage
+├── db/             — base, session, models (импорт всех моделей для Alembic)
+├── dependencies.py — get_current_user, require_roles
+├── documents/      — документы
+├── events/         — мероприятия
+├── groups/         — группы
+├── lessons/        — занятия
+├── main.py         — точка входа, монтирование роутеров
+├── notifications/  — уведомления
+├── rooms/          — аудитории
+├── streams/        — потоки
+├── users/          — пользователи, профили
+└── vkr/            — темы ВКР
+```
+
+---
+
+## Аутентификация
+
+- `POST /api/v1/auth/register` — самостоятельная регистрация студента
+- `POST /api/v1/auth/login` — вход (OAuth2 form), возвращает access + refresh токены
+- `POST /api/v1/auth/refresh` — обновление токенов
+- `POST /api/v1/auth/logout` — отзыв refresh-токена
+- `POST /api/v1/auth/reset-password` — сброс пароля, новый отправляется на email
+- `GET /api/v1/auth/me` — текущий пользователь
+
+**Bearer-схема:** `HTTPBearer` (не OAuth2PasswordBearer). Токен передаётся в заголовке `Authorization: Bearer <token>`.
+
+Refresh-токены хранятся в таблице `refresh_tokens` (jti, revoked, expires_at).
+
+---
 
 ## Роли пользователей
 
 | Роль | Описание |
 |------|----------|
-| `student` | Студент — базовый доступ на чтение |
-| `headman` | Староста — расширенные права внутри группы |
-| `teacher` | Преподаватель — публикация контента, управление посещаемостью |
-| `deputy_head` | Заместитель заведующего |
-| `dean` | Деканат — управление структурой (потоки, группы, расписание) |
-| `admin` | Администратор — полный доступ |
+| `student` | Студент — регистрируется сам |
+| `headman` | Староста — создаётся админом |
+| `teacher` | Преподаватель — создаётся админом |
+| `deputy_head` | Зав. кафедрой — создаётся админом |
+| `dean` | Деканат — создаётся админом |
+| `admin` | Администратор |
 
 ---
 
-## Сущности и их связи
+## Пользователи и профили
 
-### Структура учебного процесса
+### Создание пользователей
 
-```
-Stream (поток)
-  └── Group (группа)  ←── StudentProfile (профиль студента)
-                              └── User
-```
-
-- **Stream** — учебный поток (например, ИИТ-22). Создаётся деканатом.
-- **Group** — группа внутри потока (например, ИИТ22-01). Создаётся деканатом.
-- **StudentProfile** — привязывает пользователя к группе. Содержит телефон, telegram, vk.
-- **TeacherProfile** — профиль преподавателя: кафедра, должности (`TeacherPosition`), кабинет.
-- **DeanProfile** — профиль деканата: факультет, должность, кабинет.
-
-### Объявления и мероприятия
-
-```
-Announcement (объявление)
-  ├── target_groups  → Group[]   (кому адресовано)
-  ├── target_streams → Stream[]  (кому адресовано)
-  ├── Attachment[]               (вложения)
-  └── Event (мероприятие) [0..1] (опционально)
-            └── room_id → Room
-```
-
-- **Announcement** — информационное сообщение с жизненным циклом:
-  ```
-  draft → scheduled → published → archived → (удаление через 14 дней)
-                                  ↑________| восстановление (dean, admin)
-  ```
-
-  **Автоматические переходы** — Celery-таска `sync_announcement_statuses` (каждые 60 сек, три шага за один прогон):
-  1. `scheduled → published`: если `publish_at <= now`
-  2. `published → archived`: если `expires_at <= now` (только при наличии `expires_at`; объявления без него не архивируются автоматически)
-  3. `archived → удалено`: если `updated_at <= now - 14 дней` (`updated_at` проставляется явно при автоматической архивации, т.к. bulk `update()` не триггерит ORM `onupdate`)
-
-  **Ручные переходы**:
-  - Архивировать: своё — headman/teacher; любое на своей кафедре — deputy_head; любое — dean, admin
-  - Восстановить из архива: dean, admin (`PATCH /{id}/restore`)
-  - Удалить вручную: автор или admin
-
-  Адресуется конкретным группам (`target_groups`) и/или потокам (`target_streams`).
-
-- **Event** — мероприятие с временем проведения (`starts_at`, `ends_at`) и аудиторией (`room_id → Room`).
-  Может быть привязано к объявлению (`announcement_id nullable`) — тогда событие создаётся отдельно и при желании связывается с существующим Announcement.
-
-- **Room** — аудитория: номер, адрес, вместимость.
-
-### Расписание и посещаемость
-
-```
-Lesson (занятие)
-  ├── group_id  → Group
-  ├── teacher_id → User (teacher)
-  └── room_id   → Room
-
-AttendanceToken (QR-токен)
-  └── lesson_id → Lesson
-
-Attendance (запись о посещении)
-  ├── lesson_id  → Lesson
-  └── student_id → User
-```
-
-- **Lesson** — занятие из расписания (синхронизируется через `/lessons/sync`).
-- **AttendanceToken** — одноразовый QR-токен для отметки посещения (живёт 15 минут).
-- **Attendance** — факт посещения: студент отмечается сканом QR или вручную преподавателем.
-
-### Чат
-
-```
-Chat
-  ├── type: group | direct
-  ├── group_id → Group  (только для group-чатов)
-  ├── ChatMember[] → User[]
-  └── ChatMessage[]
-        ├── sender_id → User
-        └── body
-```
-
-- **Chat** — абстракция чата двух видов:
-  - `group` — групповой чат, привязан к `Group` (создаётся вместе с группой)
-  - `direct` — личная переписка между двумя пользователями (создаётся при первом обращении)
-- **ChatMember** — участник чата (many-to-many `Chat ↔ User`)
-- **ChatMessage** — сообщение. Сохраняется в БД и в реальном времени рассылается всем подключённым через WebSocket.
-- Соединение: `WS /api/v1/chats/{id}/ws?token=...` — авторизация через access token в query-параметре.
-
-#### Подключение к чату (для фронта)
-
-**1. Получить чат**
-- Личка: `POST /api/v1/chats/direct/{user_id}` — возвращает `{id, type, members, ...}`
-- Групповой: `POST /api/v1/chats/group` — `{"group_id": 1, "member_ids": [1, 2, 3]}`
-- Список своих чатов: `GET /api/v1/chats`
-
-**2. Подключиться по WebSocket**
-```
-ws://HOST/api/v1/chats/{chat_id}/ws?token=<access_token>
-```
-- `access_token` — тот же JWT, что используется в заголовке `Authorization: Bearer ...`
-- Передаётся **в query-параметре** `token`, а не в заголовке (WebSocket API браузера не позволяет задавать кастомные заголовки)
-
-**3. Отправить сообщение**
-
-Отправить plain text-строку (не JSON):
-```
-Привет!
-```
-
-**4. Входящие сообщения**
-
-Все участники чата получают JSON:
+**Студент** регистрируется сам через `POST /auth/register` (схема `StudentRegister`):
 ```json
-{
-  "id": 42,
-  "chat_id": 9,
-  "sender_id": 3,
-  "body": "Привет!",
-  "created_at": "2026-05-16T12:35:00.123456"
-}
+{ "name", "surname", "patronymic"?, "email", "password", "group_id" }
 ```
 
-**Коды закрытия соединения:**
-| Код | Причина |
-|-----|---------|
-| `4001` | Невалидный или просроченный токен |
-| `4003` | Пользователь не является участником чата |
+**Все остальные роли** создаются администратором через `POST /users` (схема `UserCreate`):
+```json
+{ "name", "surname", "patronymic"?, "email", "role", "group_id"? }
+```
+Пароль для headman, teacher, deputy_head, dean генерируется автоматически и отправляется на email.
 
-**Пример на JS:**
-```js
-const ws = new WebSocket(
-  `ws://localhost:8000/api/v1/chats/${chatId}/ws?token=${accessToken}`
-);
-ws.onmessage = (e) => console.log(JSON.parse(e.data));
-ws.onopen = () => ws.send("Привет!");
-ws.onclose = (e) => console.log("Closed:", e.code);
+### Профили
+
+При создании пользователя автоматически создаётся запись профиля по роли:
+
+| Роль | Таблица | Поля |
+|------|---------|------|
+| student, headman | `student_profiles` | group_id, phone, telegram, vk |
+| teacher, deputy_head | `teacher_profiles` | department, positions, phone, cabinet |
+| dean | `dean_profiles` | faculty (default ""), position, phone, cabinet |
+
+### Обновление профиля
+
+Каждый пользователь обновляет свой профиль сам. Эндпоинты проверяют роль:
+
+- `PATCH /users/me/student-profile` — только student, headman
+- `PATCH /users/me/teacher-profile` — только teacher, deputy_head
+- `PATCH /users/me/dean-profile` — только dean
+
+### Прочие эндпоинты пользователей
+
+- `GET /users` — список пользователей (видимость зависит от роли)
+- `GET /users/teachers` — все преподаватели и зав. кафедрой без телефона (для авторизованных)
+- `GET /users/search?surname=` — поиск по фамилии
+- `PUT /users/{id}` — обновление базовых данных (ФИО, email)
+- `PATCH /users/{id}/password` — смена пароля
+- `PATCH /users/me/avatar` — загрузка аватарки
+- `GET /users/{id}/avatar` — получение аватарки
+- `DELETE /users/{id}` — удаление (только admin)
+
+### Видимость пользователей (`GET /users`)
+
+| Роль | Видит |
+|------|-------|
+| admin, dean, deputy_head | Всех |
+| student, headman | Одногруппников + всех преподавателей |
+| teacher | Студентов своих групп + deputy_head |
+
+---
+
+## Чат
+
+Модуль `app/chat/`. Заменил старый модуль `messages`.
+
+**Типы чатов:** `direct` (личный), `group` (групповой).
+
+**Эндпоинты:**
+- `GET /chats` — список чатов (admin видит все, остальные — свои)
+- `POST /chats/group` — создать групповой чат
+- `GET /chats/direct/{user_id}` — получить или создать личный чат
+- `GET /chats/{id}/messages` — история сообщений
+- `POST /chats/{id}/messages` — отправить сообщение через REST
+- `WS /chats/{id}/ws` — WebSocket для реального времени
+
+**Таблицы:** `chats`, `chat_members`, `chat_messages`.
+
+---
+
+## ВКР
+
+Модуль `app/vkr/`. Таблица `vkr_topics`.
+
+**Статусы:** `pending` → `approved` / `rejected`
+
+**Эндпоинты:**
+- `POST /vkr/topics` — предложить тему (student, headman, teacher)
+- `GET /vkr/my-topics` — мои темы
+- `GET /vkr/topics` — все темы с фильтром по статусу (deputy_head, admin)
+- `GET /vkr/topics/approved` — одобренные (dean, deputy_head, admin)
+- `GET /vkr/topics/{id}` — детали темы
+- `POST /vkr/topics/{id}/review` — одобрить/отклонить (deputy_head)
+
+При отклонении комментарий обязателен.
+
+---
+
+## Объявления
+
+- `GET /announcements` — список (фильтрация по роли пользователя)
+- `GET /announcements/my` — объявления текущего пользователя
+- `POST /announcements` — создать
+- `PUT /announcements/{id}` — обновить
+- `DELETE /announcements/{id}` — удалить (soft delete)
+- `POST /announcements/{id}/restore` — восстановить
+
+---
+
+## Email
+
+`app/core/email.py`. Внутренний хелпер `_send_email` используется двумя функциями:
+- `send_credentials_email` — отправка логина/пароля при создании пользователя
+- `send_password_reset_email` — отправка нового пароля при сбросе
+
+Требует `RESEND_API_KEY` в `.env`. При отсутствии — логирует предупреждение и пропускает.
+
+---
+
+## Административная панель
+
+URL: `http://localhost:8000/admin`
+Вход: email + пароль пользователя с ролью `admin`
+
+**Представления:** UserAdmin, RefreshTokenAdmin, StreamAdmin, GroupAdmin, ChatAdmin, ChatMessageAdmin, EventAdmin, DocumentAdmin
+
+---
+
+## CI/CD
+
+`.gitlab-ci.yml` — три стадии: build → test → deploy.
+Deploy только из ветки `main`, через SSH на сервер.
+
+---
+
+## Миграции
+
+```bash
+docker compose exec api alembic upgrade head
 ```
 
-### Прочее
-
-- **Document** — файл с полем `visibility`. Поддерживает гранулярную видимость:
-  - `role:student` / `role:teacher` / ... — по роли
-  - `group:5` — конкретная группа
-  - `stream:2` — конкретный поток
-  - Простые строки без префикса (legacy): `student`, `teacher` и т.д.
-- **Notification** — системное уведомление, привязывается к Announcement или Event.
-
----
-
-## Флоу авторизации
-
-### Студент
-1. `POST /auth/register` — самостоятельная регистрация, роль всегда `student`
-2. `POST /auth/login` → `access_token` + `refresh_token`
-
-### Преподаватель / деканат / староста (`teacher`, `dean`, `headman`, `deputy_head`)
-Самостоятельная регистрация недоступна — аккаунт создаёт только `admin`:
-
-1. `POST /users` (admin) — передаёт `email`, `name`, `surname`, `patronymic` (опц.), нужную роль; поле `password` игнорируется
-2. Бэк генерирует случайный пароль (`generate_password`, 12 символов)
-3. Создаёт пользователя в БД
-4. Отправляет письмо на указанный email с логином и паролем (`send_credentials_email`); ошибка отправки не прерывает создание — только логируется
-5. Пользователь логинится через `POST /auth/login` полученными кредами
-
-### Общий механизм токенов
-- **Access-токен** (JWT): `sub=user_id`, `role`, `type="access"`. Живёт `ACCESS_TOKEN_EXPIRE_MINUTES`.
-- **Refresh-токен** (JWT): `sub`, `jti` (UUID), `type="refresh"`. Хранится в таблице `refresh_tokens` (поле `revoked`). Живёт `REFRESH_TOKEN_EXPIRE_DAYS`.
-- `POST /auth/refresh` — rotation: старый refresh отзывается, выдаётся новая пара токенов.
-- `POST /auth/logout` — refresh отзывается; access-токен живёт до истечения срока (stateless).
-- Защита маршрутов: `require_roles(Role.teacher, ...)` — проверяет `user.role` после декодирования access-токена.
-
----
-
-## Права доступа по модулям
-
-### Users `/users`
-| Действие | Метод | Роли |
-|----------|-------|------|
-| Создать пользователя | `POST /users` | admin |
-| Список пользователей | `GET /users` | headman, admin |
-| Просмотр профиля | `GET /users/{id}` | любой авторизованный |
-| Редактировать профиль | `PUT /users/{id}` | сам пользователь, admin |
-| Сменить пароль | `PATCH /users/{id}/password` | сам пользователь, admin |
-| Загрузить аватар | `PATCH /users/me/avatar` | любой авторизованный |
-| Получить аватар | `GET /users/{id}/avatar` | любой авторизованный |
-| Удалить пользователя | `DELETE /users/{id}` | admin |
-
-`UserRead` содержит: `id`, `name`, `surname`, `patronymic`, `email`, `role`, `is_active`, `avatar`, `created_at`, `updated_at`.
-
-`UserUpdate` позволяет изменить только: `name`, `surname`, `patronymic`, `email` (роль и пароль — отдельными эндпоинтами).
-
-Аватары сохраняются в `UPLOAD_DIR/avatars/`. При загрузке нового аватара старый файл удаляется с диска. Допустимые форматы: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`.
-
-Логика создания (`POST /users`):
-- Роли `headman`, `teacher`, `dean`, `deputy_head` — пароль генерируется автоматически и отправляется на email (`send_credentials_email`). Поле `password` в запросе игнорируется.
-- Роли `student`, `admin` — пароль передаётся явно в теле запроса.
-
-### Streams `/streams`
-| Действие | Роли |
-|----------|------|
-| Список / просмотр | любой авторизованный |
-| Создать / изменить / удалить | dean |
-
-### Groups `/groups`
-| Действие | Роли |
-|----------|------|
-| Список / просмотр | любой авторизованный |
-| Создать / изменить / удалить | dean |
-
-### Announcements `/announcements`
-| Действие | Роли |
-|----------|------|
-| Список / просмотр | любой авторизованный (фильтрация по группе) |
-| Создать | teacher, headman, admin |
-| Изменить | своё — headman/teacher; кафедры — deputy_head; любое — dean |
-| Архивировать | своё — headman/teacher; кафедры — deputy_head; любое — dean, admin |
-| Восстановить из архива | dean, admin |
-| Удалить вручную | автор или admin |
-| Удалить автоматически | Celery — через 14 дней после архивирования |
-
-### Events `/events`
-| Действие | Роли |
-|----------|------|
-| Список / просмотр | любой авторизованный |
-| Создать | teacher, headman, admin |
-| Изменить / удалить | автор события, headman, admin |
-| Загрузить изображение | автор события, headman, admin |
-
-### Lessons `/lessons`
-| Действие | Роли |
-|----------|------|
-| Расписание группы / преподавателя | любой авторизованный |
-| Синхронизировать расписание | dean |
-
-### Attendance `/attendance`
-| Действие | Роли |
-|----------|------|
-| Создать QR-токен | teacher, headman |
-| Получить QR-изображение | teacher, headman |
-| Отметиться по QR | student, headman |
-| Отметить вручную | teacher, headman |
-| Просмотр посещаемости занятия / студента | любой авторизованный |
-
-### Chats `/chats`
-| Действие | Роли |
-|----------|------|
-| Список своих чатов | любой авторизованный |
-| Открыть личку с пользователем | любой авторизованный |
-| История сообщений | участник чата |
-| WebSocket (отправка/приём) | участник чата (token в query) |
-
-### Documents `/documents`
-| Действие | Метод | Роли |
-|----------|-------|------|
-| Список | `GET /documents` | любой авторизованный (фильтр по `visibility`) |
-| Загрузить | `POST /documents` | teacher, deputy_head, admin |
-| Просмотр метаданных | `GET /documents/{id}` | любой авторизованный, у кого доступ по `visibility` |
-| Скачать файл | `GET /documents/{id}/download` | любой авторизованный, у кого доступ по `visibility` |
-| Изменить метаданные | `PUT /documents/{id}` | headman, admin |
-| Удалить | `DELETE /documents/{id}` | admin |
-
-`visibility` принимается как строка через `Form` (multipart): можно JSON-массив `["role:student","group:5"]` или список через запятую `role:student, group:5`. Валидируется на сервере — несуществующие группы/потоки возвращают 400.
-
-`DocumentRead` содержит: `id`, `title`, `description`, `category`, `visibility`, `file_name`, `uploader_id`, `created_at`, `updated_at`.
-
----
-
-## Известные недоделки
-
-| Место | Проблема |
-|-------|----------|
-| `users/crud.py` `update_user_password` | устанавливает `user.password` вместо `user.hashed_password` — пароль не хешируется |
-| `users/router.py` | нет эндпоинта `PATCH /{id}/role` для смены роли (функция `update_user_role` в crud есть, роутер не подключён) |
-| `dependencies.py` | TODO: зависимость для преподавателя → его группы |
+Актуальная цепочка миграций:
+- `49db932424b1` — начальные таблицы
+- `b3c4d5e6f7a8` — замена messages на chat
+- `aa3f86f1e167` — announcement_id nullable в events
+- `f1a2b3c4d5e6` — роль deputy_head
+- `019304363317` — таблица vkr_topics

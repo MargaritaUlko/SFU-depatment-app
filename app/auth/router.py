@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.schemas import LogoutRequest, RefreshRequest, TokenResponse
+from app.auth.schemas import LogoutRequest, PasswordResetRequest, RefreshRequest, TokenResponse
 from app.auth.service import (
     create_access_token,
     create_refresh_token_value,
@@ -15,22 +15,32 @@ from app.auth.service import (
 )
 from app.db.session import get_db
 from app.dependencies import get_current_user
+from app.core.email import send_credentials_email, send_password_reset_email
+from app.core.security import generate_password, hash_password
 from app.users.crud import authenticate_user, create_user, get_user, get_user_by_email
 from app.users.model import Role, User
-from app.users.schemas import UserCreate, UserRead
+from app.users.schemas import StudentRegister, UserCreate, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(data: StudentRegister, db: AsyncSession = Depends(get_db)):
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email уже зарегистрирован"
         )
-    data.role = Role.student
-    return await create_user(db, data)
+    user_data = UserCreate(
+        name=data.name,
+        surname=data.surname,
+        patronymic=data.patronymic,
+        email=data.email,
+        password=data.password,
+        role=Role.student,
+        group_id=data.group_id,
+    )
+    return await create_user(db, user_data)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -88,6 +98,22 @@ async def logout(data: LogoutRequest, db: AsyncSession = Depends(get_db)):
     if payload and payload.get("type") == "refresh":
         jti = payload.get("jti", "")
         await revoke_refresh_token(db, jti)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    user = await get_user_by_email(db, data.email)
+    if not user:
+        return
+    new_password = generate_password()
+    user.hashed_password = hash_password(new_password)
+    await db.commit()
+    full_name = f"{user.surname} {user.name}"
+    try:
+        await send_password_reset_email(user.email, full_name, new_password)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("Не удалось отправить письмо %s: %s", user.email, exc)
 
 
 @router.get("/me", response_model=UserRead)

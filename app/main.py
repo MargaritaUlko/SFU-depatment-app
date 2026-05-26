@@ -9,10 +9,11 @@ from sqladmin import Admin
 import app.db.models  # noqa
 from app.admin.auth import AdminAuth
 from app.admin.views import (
+    ChatAdmin,
+    ChatMessageAdmin,
     DocumentAdmin,
     EventAdmin,
     GroupAdmin,
-
     RefreshTokenAdmin,
     StreamAdmin,
     UserAdmin,
@@ -21,6 +22,7 @@ from app.announcements.router import router as announcements_router
 from app.lessons.router import router as lessons_router
 from app.rooms.route import router as rooms_router
 from app.attendance.router import router as attendance_router
+from app.vkr.router import router as vkr_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
 from app.db.models import *
@@ -78,7 +80,8 @@ admin.add_view(UserAdmin)
 admin.add_view(RefreshTokenAdmin)
 admin.add_view(StreamAdmin)
 admin.add_view(GroupAdmin)
-
+admin.add_view(ChatAdmin)
+admin.add_view(ChatMessageAdmin)
 admin.add_view(EventAdmin)
 admin.add_view(DocumentAdmin)
 
@@ -100,6 +103,7 @@ app.include_router(announcements_router, prefix=PREFIX)
 app.include_router(lessons_router, prefix=PREFIX)
 app.include_router(rooms_router, prefix=PREFIX)
 app.include_router(attendance_router, prefix=PREFIX)
+app.include_router(vkr_router, prefix=PREFIX)
 
 
 @app.get("/health", tags=["health"])
