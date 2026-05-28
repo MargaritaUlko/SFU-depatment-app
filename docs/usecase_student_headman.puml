@@ -1,0 +1,100 @@
+@startuml
+skinparam actorStyle awesome
+
+actor "Студент" as S
+actor "Староста" as H
+
+rectangle "Аккаунт" {
+  (Регистрация и вход) as auth
+  (Просмотр и редактирование профиля) as profile
+  (Смена пароля и аватара) as pwd
+  (Обновить студенческий профиль) as stProfile
+}
+
+rectangle "Пользователи" {
+  (Просмотреть однокурсников и преподавателей) as users
+  (Найти пользователя по фамилии) as search
+}
+
+rectangle "Объявления" {
+  (Читать объявления своей группы) as readAnn
+  (Создать объявление для своей группы) as createAnn
+  (Редактировать и удалить своё объявление) as editAnn
+  (Архивировать своё объявление) as archiveAnn
+}
+
+rectangle "Документы" {
+  (Просматривать и скачивать документы) as docs
+}
+
+rectangle "Мероприятия" {
+  (Просматривать мероприятия) as readEvents
+  (Создать мероприятие) as createEvent
+  (Редактировать и удалить своё мероприятие) as editEvent
+  (Загрузить изображение мероприятия) as eventImg
+}
+
+rectangle "Расписание" {
+  (Просмотреть расписание группы и преподавателя) as schedule
+}
+
+rectangle "Посещаемость" {
+  (Отметиться по QR-коду) as scanQR
+  (Просмотреть посещаемость) as viewAtt
+  (Создать QR-токен для занятия) as genQR
+  (Отметить студента вручную) as manualAtt
+}
+
+rectangle "Чаты" {
+  (Создать личный и групповой чат) as createChat
+  (Читать и отправлять сообщения) as chat
+}
+
+rectangle "ВКР" {
+  (Предложить тему ВКР) as proposeVKR
+  (Просмотреть свои темы ВКР) as myVKR
+}
+
+S --> auth
+S --> profile
+S --> pwd
+S --> stProfile
+S --> users
+S --> search
+S --> readAnn
+S --> docs
+S --> readEvents
+S --> schedule
+S --> scanQR
+S --> viewAtt
+S --> createChat
+S --> chat
+S --> proposeVKR
+S --> myVKR
+
+H --> auth
+H --> profile
+H --> pwd
+H --> stProfile
+H --> users
+H --> search
+H --> readAnn
+H --> createAnn
+H --> editAnn
+H --> archiveAnn
+H --> docs
+H --> readEvents
+H --> createEvent
+H --> editEvent
+H --> eventImg
+H --> schedule
+H --> scanQR
+H --> viewAtt
+H --> genQR
+H --> manualAtt
+H --> createChat
+H --> chat
+H --> proposeVKR
+H --> myVKR
+
+@enduml

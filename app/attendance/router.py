@@ -26,7 +26,7 @@ router = APIRouter(prefix="/attendance", tags=["attendance"])
 async def create_token_endpoint(
     lesson_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman)),
 ):
     return await generate_token(db, lesson_id, expires_minutes=15)
 
@@ -35,7 +35,7 @@ async def create_token_endpoint(
 async def get_qr_endpoint(
     lesson_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman)),
 ):
     token = await get_active_token(db, lesson_id)
     img = qrcode.make(token.token)
@@ -59,7 +59,7 @@ async def mark_manual_endpoint(
     lesson_id: int,
     student_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman)),
 ):
     return await mark_manually(db, lesson_id, student_id)
 

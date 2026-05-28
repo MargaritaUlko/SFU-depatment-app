@@ -12,7 +12,7 @@ from app.vkr.schemas import VKRTopicCreate, VKRTopicRead, VKRTopicReview
 
 router = APIRouter(prefix="/vkr", tags=["vkr"])
 
-_PROPOSER_ROLES = (Role.student, Role.headman, Role.teacher)
+_PROPOSER_ROLES = (Role.student, Role.headman, Role.teacher, Role.deputy_head)
 
 
 @router.post(

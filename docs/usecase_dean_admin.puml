@@ -1,0 +1,107 @@
+@startuml
+skinparam actorStyle awesome
+
+actor "Деканат" as Dean
+actor "Администратор" as Admin
+
+rectangle "Аккаунт" {
+  (Вход, выход, сброс пароля) as auth
+  (Просмотр и редактирование профиля) as profile
+  (Обновить профиль деканата) as deanProfile
+}
+
+rectangle "Управление пользователями" {
+  (Просмотреть всех пользователей) as listAll
+  (Найти пользователя по фамилии) as search
+  (Создать пользователя любой роли) as createUser
+  (Удалить пользователя) as deleteUser
+  (Редактировать профиль любого пользователя) as editAny
+  (Сменить пароль без старого пароля) as forcePwd
+}
+
+rectangle "Объявления" {
+  (Просматривать объявления) as readAnn
+  (Создать и редактировать любое объявление) as manageAnn
+  (Архивировать любое объявление) as archiveAnn
+  (Восстановить из архива) as restoreAnn
+  (Удалить любое объявление) as deleteAnn
+}
+
+rectangle "Документы" {
+  (Просматривать и скачивать документы) as readDoc
+  (Загрузить документ) as uploadDoc
+  (Редактировать и удалить любой документ) as manageDoc
+}
+
+rectangle "Мероприятия" {
+  (Просматривать мероприятия) as readEvents
+  (Создать, редактировать, удалить любое) as manageEvents
+}
+
+rectangle "Группы, потоки, расписание" {
+  (Просматривать группы и потоки) as readGS
+  (Создать, редактировать, удалить группу или поток) as manageGS
+  (Синхронизировать расписание) as syncSchedule
+  (Просмотреть расписание и посещаемость) as schedule
+}
+
+rectangle "ВКР" {
+  (Просмотреть все темы ВКР) as allVKR
+  (Просмотреть одобренные темы) as approvedVKR
+}
+
+rectangle "Чаты" {
+  (Просматривать свои чаты и писать) as myChat
+  (Просматривать все чаты и писать в любой) as allChats
+}
+
+rectangle "Администрирование" {
+  (Войти в административную панель) as adminPanel
+}
+
+Dean --> auth
+Dean --> profile
+Dean --> deanProfile
+Dean --> listAll
+Dean --> search
+Dean --> readAnn
+Dean --> archiveAnn
+Dean --> restoreAnn
+Dean --> readDoc
+Dean --> readEvents
+Dean --> readGS
+Dean --> manageGS
+Dean --> syncSchedule
+Dean --> schedule
+Dean --> approvedVKR
+Dean --> allVKR
+Dean --> myChat
+
+Admin --> auth
+Admin --> profile
+Admin --> listAll
+Admin --> search
+Admin --> createUser
+Admin --> deleteUser
+Admin --> editAny
+Admin --> forcePwd
+Admin --> readAnn
+Admin --> manageAnn
+Admin --> archiveAnn
+Admin --> restoreAnn
+Admin --> deleteAnn
+Admin --> readDoc
+Admin --> uploadDoc
+Admin --> manageDoc
+Admin --> readEvents
+Admin --> manageEvents
+Admin --> readGS
+Admin --> manageGS
+Admin --> syncSchedule
+Admin --> schedule
+Admin --> allVKR
+Admin --> approvedVKR
+Admin --> allChats
+Admin --> adminPanel
+
+@enduml

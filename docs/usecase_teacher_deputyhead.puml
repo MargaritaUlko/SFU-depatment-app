@@ -1,0 +1,107 @@
+@startuml
+skinparam actorStyle awesome
+
+actor "Преподаватель" as T
+actor "Зав. кафедрой" as D
+
+rectangle "Аккаунт" {
+  (Вход, выход, сброс пароля) as auth
+  (Просмотр и редактирование профиля) as profile
+  (Обновить профиль преподавателя) as tProfile
+}
+
+rectangle "Пользователи" {
+  (Просмотреть студентов своих групп) as usersT
+  (Просмотреть всех пользователей) as usersAll
+  (Найти пользователя по фамилии) as search
+}
+
+rectangle "Объявления" {
+  (Создать объявление для своих групп) as createAnnT
+  (Создать объявление для любых групп) as createAnnD
+  (Редактировать и удалить своё объявление) as editOwnAnn
+  (Редактировать объявления своей кафедры) as editDeptAnn
+  (Архивировать объявления своей кафедры) as archiveDeptAnn
+}
+
+rectangle "Документы" {
+  (Загрузить документ) as uploadDoc
+  (Редактировать свой документ) as editDoc
+  (Просматривать и скачивать документы) as readDoc
+}
+
+rectangle "Мероприятия" {
+  (Просматривать мероприятия) as readEvents
+  (Создать мероприятие) as createEvent
+  (Редактировать и удалить своё мероприятие) as editEvent
+}
+
+rectangle "Расписание и посещаемость" {
+  (Просмотреть расписание) as schedule
+  (Создать QR-токен для занятия) as genQR
+  (Отметить студента вручную) as manualAtt
+  (Просмотреть посещаемость) as viewAtt
+}
+
+rectangle "Чаты" {
+  (Создать личный и групповой чат) as createChat
+  (Читать и отправлять сообщения) as chat
+}
+
+rectangle "ВКР" {
+  (Предложить тему ВКР) as proposeVKR
+  (Просмотреть свои темы ВКР) as myVKR
+  (Просмотреть все темы ВКР) as allVKR
+  (Просмотреть одобренные темы) as approvedVKR
+  (Рецензировать тему ВКР) as reviewVKR
+}
+
+T --> auth
+T --> profile
+T --> tProfile
+T --> usersT
+T --> search
+T --> createAnnT
+T --> editOwnAnn
+T --> uploadDoc
+T --> editDoc
+T --> readDoc
+T --> readEvents
+T --> createEvent
+T --> editEvent
+T --> schedule
+T --> genQR
+T --> manualAtt
+T --> viewAtt
+T --> createChat
+T --> chat
+T --> proposeVKR
+T --> myVKR
+
+D --> auth
+D --> profile
+D --> tProfile
+D --> usersAll
+D --> search
+D --> createAnnD
+D --> editOwnAnn
+D --> editDeptAnn
+D --> archiveDeptAnn
+D --> uploadDoc
+D --> editDoc
+D --> readDoc
+D --> readEvents
+D --> createEvent
+D --> editEvent
+D --> schedule
+D --> genQR
+D --> manualAtt
+D --> viewAtt
+D --> createChat
+D --> chat
+D --> allVKR
+D --> approvedVKR
+D --> reviewVKR
+D --> myVKR
+
+@enduml

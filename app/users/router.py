@@ -18,13 +18,14 @@ from app.users.crud import (
     get_visible_users,
     search_users_by_surname,
     update_dean_profile,
+    update_student_group,
     update_student_profile,
     update_teacher_profile,
     update_user,
     update_user_password,
 )
 from app.users.model import Role, User
-from app.users.schemas import DeanProfileUpdate, StudentProfileUpdate, TeacherProfileUpdate, TeacherPublicRead, UserCreate, UserPasswordChange, UserRead, UserUpdate
+from app.users.schemas import DeanProfileUpdate, StudentGroupUpdate, StudentProfileUpdate, TeacherProfileUpdate, TeacherPublicRead, UserCreate, UserPasswordChange, UserRead, UserUpdate
 from app.users.service import set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -225,6 +226,24 @@ async def update_my_dean_profile(
     if current_user.role != Role.dean:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     await update_dean_profile(db, current_user, data)
+
+
+@router.patch("/{user_id}/group", status_code=status.HTTP_204_NO_CONTENT)
+async def assign_student_group(
+    user_id: int,
+    data: StudentGroupUpdate,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(Role.dean)),
+):
+    user = await get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    if user.role not in (Role.student, Role.headman):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Группу можно назначить только студенту или старосте",
+        )
+    await update_student_group(db, user_id, data.group_id)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)

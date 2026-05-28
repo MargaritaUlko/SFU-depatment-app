@@ -17,7 +17,7 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 async def send_message(
     data: MessageCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman, Role.admin)),
 ):
     return await create_message(db, data, current_user.id)
 
@@ -25,7 +25,7 @@ async def send_message(
 @router.get("", response_model=List[MessageRead])
 async def list_messages(
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman, Role.admin)),
 ):
     return await get_messages(db, current_user)
 
@@ -34,7 +34,7 @@ async def list_messages(
 async def get_message_detail(
     message_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman, Role.admin)),
 ):
     msg = await get_message(db, message_id)
     if not msg:
@@ -53,7 +53,7 @@ async def update_message(
     message_id: uuid.UUID,
     data: MessageCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman, Role.admin)),
 ):
     pass
 
@@ -62,6 +62,6 @@ async def update_message(
 async def delete_message(
     message_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.headman, Role.admin)),
 ):
     pass

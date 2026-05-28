@@ -60,7 +60,7 @@ async def create_announcement_endpoint(
     data: AnnouncementCreate,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(
-        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head)
+        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head, Role.dean)
     ),
 ):
     return await create_announcement(db, data, current_user)

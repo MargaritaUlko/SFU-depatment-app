@@ -204,12 +204,16 @@ async def update_document_metadata(
 async def delete_document_endpoint(
     doc_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.dean, Role.admin)),
 ):
     doc = await get_document(db, doc_id)
     if not doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден"
+        )
+    if current_user.role != Role.admin and doc.uploader_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Можно удалять только свои документы"
         )
     if os.path.exists(doc.file_path):
         os.remove(doc.file_path)

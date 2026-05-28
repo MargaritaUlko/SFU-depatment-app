@@ -59,10 +59,13 @@ class UserUpdate(BaseModel):
 
 
 class StudentProfileUpdate(BaseModel):
-    group_id: Optional[int] = None
     phone: Optional[str] = None
     telegram: Optional[str] = None
     vk: Optional[str] = None
+
+
+class StudentGroupUpdate(BaseModel):
+    group_id: int
 
 
 class TeacherProfileUpdate(BaseModel):

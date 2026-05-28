@@ -115,15 +115,22 @@ async def update_student_profile(db: AsyncSession, user: User, data: StudentProf
     result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     if profile is None:
-        if not data.group_id:
-            raise ValueError("group_id обязателен при первом заполнении профиля")
-        profile = StudentProfile(user_id=user.id, group_id=data.group_id)
-        db.add(profile)
-        await db.flush()
-    for field in ("group_id", "phone", "telegram", "vk"):
+        raise ValueError("Профиль не найден. Группа назначается деканатом")
+    for field in ("phone", "telegram", "vk"):
         value = getattr(data, field)
         if value is not None:
             setattr(profile, field, value)
+    await db.commit()
+
+
+async def update_student_group(db: AsyncSession, user_id: int, group_id: int) -> None:
+    result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = StudentProfile(user_id=user_id, group_id=group_id)
+        db.add(profile)
+    else:
+        profile.group_id = group_id
     await db.commit()
 
 
