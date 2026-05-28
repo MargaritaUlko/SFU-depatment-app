@@ -1,8 +1,10 @@
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -64,7 +66,8 @@ async def create_event_endpoint(
     if image:
         directory = os.path.join(settings.UPLOAD_DIR, "events", str(event.id))
         file_path, _ = await save_upload_file(image, directory)
-        event = await set_event_image(db, event, "/" + file_path.replace("\\", "/"))
+        relative = os.path.relpath(file_path, settings.UPLOAD_DIR).replace("\\", "/")
+        event = await set_event_image(db, event, f"/uploads/{relative}")
     return event
 
 
@@ -127,6 +130,32 @@ async def delete_event_endpoint(
     await delete_event(db, event)
 
 
+@router.get("/{event_id}/image")
+async def get_event_image(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    event = await get_event(db, event_id)
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Событие не найдено"
+        )
+    if not event.image_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Изображение не прикреплено"
+        )
+    relative = event.image_url.lstrip("/").removeprefix("uploads/")
+    file_path = Path(settings.UPLOAD_DIR) / relative
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Файл изображения не найден"
+        )
+    suffix = file_path.suffix.lstrip(".").lower()
+    media_type = "image/jpeg" if suffix == "jpg" else f"image/{suffix}"
+    return FileResponse(path=str(file_path), media_type=media_type)
+
+
 @router.post("/{event_id}/image", response_model=EventRead)
 async def upload_event_image(
     event_id: int,
@@ -155,5 +184,6 @@ async def upload_event_image(
 
     directory = os.path.join(settings.UPLOAD_DIR, "events", str(event_id))
     file_path, _ = await save_upload_file(file, directory)
-    image_url = "/" + file_path.replace("\\", "/")
+    relative = os.path.relpath(file_path, settings.UPLOAD_DIR).replace("\\", "/")
+    image_url = f"/uploads/{relative}"
     return await set_event_image(db, event, image_url)
