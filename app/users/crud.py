@@ -82,9 +82,7 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     db.add(user)
     await db.flush()
 
-    if data.role in (Role.student, Role.headman) and data.group_id is not None:
-        db.add(StudentProfile(user_id=user.id, group_id=data.group_id))
-    elif data.role in (Role.teacher, Role.deputy_head):
+    if data.role in (Role.teacher, Role.deputy_head):
         db.add(TeacherProfile(user_id=user.id))
     elif data.role == Role.dean:
         db.add(DeanProfile(user_id=user.id))
@@ -92,6 +90,13 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def create_student_profile(db: AsyncSession, user_id: int, group_id: int) -> StudentProfile:
+    profile = StudentProfile(user_id=user_id, group_id=group_id)
+    db.add(profile)
+    await db.commit()
+    return profile
 
 
 async def get_teachers(db: AsyncSession, skip: int = 0, limit: int = 100):
@@ -110,7 +115,9 @@ async def update_student_profile(db: AsyncSession, user: User, data: StudentProf
     result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     if profile is None:
-        profile = StudentProfile(user_id=user.id, group_id=data.group_id or 0)
+        if not data.group_id:
+            raise ValueError("group_id обязателен при первом заполнении профиля")
+        profile = StudentProfile(user_id=user.id, group_id=data.group_id)
         db.add(profile)
         await db.flush()
     for field in ("group_id", "phone", "telegram", "vk"):

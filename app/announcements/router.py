@@ -86,7 +86,7 @@ async def update_announcement_endpoint(
     data: AnnouncementUpdate,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(
-        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head)
+        require_roles(Role.teacher, Role.headman, Role.admin, Role.deputy_head, Role.dean)
     ),
 ):
     ann = await get_announcement(db, ann_id)

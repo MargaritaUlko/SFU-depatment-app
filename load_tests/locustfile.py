@@ -380,8 +380,8 @@ class AdminTasks(TaskSet):
 
 
 class HealthUser(HttpUser):
-    weight = 3
-    wait_time = between(0.1, 0.3)
+    weight = 2
+    wait_time = between(5, 10)
 
     @task
     def health(self):
@@ -389,26 +389,26 @@ class HealthUser(HttpUser):
 
 
 class StudentUser(HttpUser):
-    weight = 45
-    wait_time = between(0.2, 1.0)
+    weight = 70
+    wait_time = between(8, 25)
     tasks = [StudentTasks]
 
 
 class TeacherUser(HttpUser):
-    weight = 20
-    wait_time = between(0.5, 2.0)
+    weight = 15
+    wait_time = between(10, 35)
     tasks = [TeacherTasks]
 
 
 class DocHeavyUser(HttpUser):
-    weight = 25
-    wait_time = between(0.1, 0.5)
+    weight = 10
+    wait_time = between(5, 15)
     tasks = [DocHeavyTasks]
 
 
 class AdminUser(HttpUser):
-    weight = 7
-    wait_time = between(1.0, 3.0)
+    weight = 3
+    wait_time = between(20, 60)
     tasks = [AdminTasks]
 
 

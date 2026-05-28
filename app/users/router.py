@@ -199,7 +199,10 @@ async def update_my_student_profile(
 ):
     if current_user.role not in (Role.student, Role.headman):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
-    await update_student_profile(db, current_user, data)
+    try:
+        await update_student_profile(db, current_user, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
 
 @router.patch("/me/teacher-profile", status_code=status.HTTP_204_NO_CONTENT)

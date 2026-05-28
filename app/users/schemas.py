@@ -22,7 +22,6 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: Optional[str] = None
     role: Role = Role.student
-    group_id: Optional[int] = None
 
 
 class UserRead(BaseModel):

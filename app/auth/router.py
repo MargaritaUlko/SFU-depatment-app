@@ -17,7 +17,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.core.email import send_credentials_email, send_password_reset_email
 from app.core.security import generate_password, hash_password
-from app.users.crud import authenticate_user, create_user, get_user, get_user_by_email
+from app.users.crud import authenticate_user, create_student_profile, create_user, get_user, get_user_by_email
 from app.users.model import Role, User
 from app.users.schemas import StudentRegister, UserCreate, UserRead
 
@@ -38,9 +38,10 @@ async def register(data: StudentRegister, db: AsyncSession = Depends(get_db)):
         email=data.email,
         password=data.password,
         role=Role.student,
-        group_id=data.group_id,
     )
-    return await create_user(db, user_data)
+    user = await create_user(db, user_data)
+    await create_student_profile(db, user.id, data.group_id)
+    return user
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -1,4 +1,6 @@
 from celery import Celery
+from celery.schedules import crontab
+
 from app.core.config import settings
 
 celery_app = Celery(
@@ -11,7 +13,11 @@ celery_app = Celery(
 celery_app.conf.beat_schedule = {
     "sync-announcement-statuses": {
         "task": "app.announcements.tasks.sync_announcement_statuses",
-        "schedule": 60.0,  # каждые 60 секунд
+        "schedule": crontab(minute=0, hour="*/5"),  # каждые 5 часов
+    },
+    "cleanup-archived-announcements": {
+        "task": "app.announcements.tasks.cleanup_archived_announcements",
+        "schedule": crontab(hour=3, minute=0),  # каждую ночь в 03:00 UTC
     },
 }
 celery_app.conf.timezone = "UTC"

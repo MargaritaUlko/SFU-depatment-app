@@ -24,7 +24,6 @@ async def _sync_statuses() -> None:
     Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     now = datetime.now(timezone.utc)
-    archive_deadline = now - timedelta(days=ARCHIVE_TTL_DAYS)
 
     async with Session() as db:
         published = await db.execute(
@@ -44,6 +43,23 @@ async def _sync_statuses() -> None:
             )
             .values(status=AnnouncementStatus.archived, updated_at=now)
         )
+        await db.commit()
+
+    await engine.dispose()
+
+    if published.rowcount:
+        logger.info("Опубликовано объявлений: %d", published.rowcount)
+    if archived.rowcount:
+        logger.info("Архивировано объявлений: %d", archived.rowcount)
+
+
+async def _cleanup_archived() -> None:
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    archive_deadline = datetime.now(timezone.utc) - timedelta(days=ARCHIVE_TTL_DAYS)
+
+    async with Session() as db:
         deleted = await db.execute(
             delete(Announcement)
             .where(
@@ -55,10 +71,6 @@ async def _sync_statuses() -> None:
 
     await engine.dispose()
 
-    if published.rowcount:
-        logger.info("Опубликовано объявлений: %d", published.rowcount)
-    if archived.rowcount:
-        logger.info("Архивировано объявлений: %d", archived.rowcount)
     if deleted.rowcount:
         logger.info("Удалено архивных объявлений: %d", deleted.rowcount)
 
@@ -66,3 +78,8 @@ async def _sync_statuses() -> None:
 @celery_app.task(name="app.announcements.tasks.sync_announcement_statuses")
 def sync_announcement_statuses() -> None:
     asyncio.run(_sync_statuses())
+
+
+@celery_app.task(name="app.announcements.tasks.cleanup_archived_announcements")
+def cleanup_archived_announcements() -> None:
+    asyncio.run(_cleanup_archived())

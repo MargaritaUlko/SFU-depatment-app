@@ -50,7 +50,8 @@ async def get_announcements(
             select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
         )
         profile = result.scalar_one_or_none()
-        filters.department = profile.department
+        if profile:
+            filters.department = profile.department
 
     return await get_announcements_(db, filters)
 
@@ -104,7 +105,7 @@ async def update_announcement(
     data: AnnouncementUpdate,
     current_user: User,
 ) -> Announcement:
-    if current_user.role == Role.dean:
+    if current_user.role == Role.dean or current_user.role == Role.admin:
         pass  # может редактировать любой анонс
     elif current_user.role == Role.deputy_head:
         author_profile = ann.author.teacher_profile if ann.author else None

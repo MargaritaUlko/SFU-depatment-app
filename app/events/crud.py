@@ -43,7 +43,7 @@ async def _get_event_with_room(db: AsyncSession, event_id: int) -> Event:
 async def create_event(
     db: AsyncSession, data: EventCreate, creator_id: uuid.UUID
 ) -> Event:
-    event_dict = data.model_dump(exclude={"links"})
+    event_dict = data.model_dump()
     event = Event(**event_dict, creator_id=creator_id)
     db.add(event)
     await db.commit()
@@ -51,7 +51,7 @@ async def create_event(
 
 
 async def update_event(db: AsyncSession, event: Event, data: EventUpdate) -> Event:
-    update_dict = data.model_dump(exclude_none=True, exclude={"links"})
+    update_dict = data.model_dump(exclude_none=True)
     for key, val in update_dict.items():
         setattr(event, key, val)
     await db.commit()

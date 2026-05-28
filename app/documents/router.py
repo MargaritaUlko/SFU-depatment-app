@@ -116,7 +116,7 @@ async def upload_document(
     ),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.dean, Role.admin)),
 ):
     vis_list = await _parse_and_validate_visibility(visibility, db)
 
@@ -182,12 +182,16 @@ async def update_document_metadata(
     doc_id: int,
     data: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(Role.headman, Role.admin)),
+    current_user=Depends(require_roles(Role.teacher, Role.deputy_head, Role.dean, Role.admin)),
 ):
     doc = await get_document(db, doc_id)
     if not doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден"
+        )
+    if current_user.role != Role.admin and doc.uploader_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Можно редактировать только свои документы"
         )
     if data.visibility is not None:
         data.visibility = await _parse_and_validate_visibility(

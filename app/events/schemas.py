@@ -12,6 +12,7 @@ class EventCreate(BaseModel):
     starts_at: datetime
     ends_at: datetime
     room_id: Optional[int] = None
+    announcement_id: Optional[int] = None
 
 
 class EventUpdate(BaseModel):
@@ -20,6 +21,7 @@ class EventUpdate(BaseModel):
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     room_id: Optional[int] = None
+    announcement_id: Optional[int] = None
 
 
 class EventRead(BaseModel):
@@ -31,6 +33,7 @@ class EventRead(BaseModel):
     room: Optional[RoomRead] = None
     image_url: Optional[str] = None
     creator_id: int
+    announcement_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
