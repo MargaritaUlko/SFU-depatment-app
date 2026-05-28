@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import List
 
@@ -153,8 +154,8 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    if current_user.role != Role.admin and not verify_password(
-        data.old_password, user.hashed_password
+    if current_user.role != Role.admin and not await asyncio.to_thread(
+        verify_password, data.old_password, user.hashed_password
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль"

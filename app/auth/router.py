@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -107,7 +108,7 @@ async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(
     if not user:
         return
     new_password = generate_password()
-    user.hashed_password = hash_password(new_password)
+    user.hashed_password = await asyncio.to_thread(hash_password, new_password)
     await db.commit()
     full_name = f"{user.surname} {user.name}"
     try:

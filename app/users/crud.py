@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -76,7 +77,7 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
         name=data.name,
         surname=data.surname,
         patronymic=data.patronymic,
-        hashed_password=hash_password(data.password),
+        hashed_password=await asyncio.to_thread(hash_password, data.password),
         role=data.role,
     )
     db.add(user)
@@ -171,7 +172,7 @@ async def update_user(db: AsyncSession, user: User, data: dict) -> User:
 
 
 async def update_user_password(db: AsyncSession, user: User, data: dict) -> User:
-    user.hashed_password = hash_password(data.new_password)
+    user.hashed_password = await asyncio.to_thread(hash_password, data.new_password)
     await db.commit()
     await db.refresh(user)
     return user
@@ -200,7 +201,10 @@ async def authenticate_user(
     db: AsyncSession, email: str, password: str
 ) -> Optional[User]:
     user = await get_user_by_email(db, email)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user:
+        return None
+    is_valid = await asyncio.to_thread(verify_password, password, user.hashed_password)
+    if not is_valid:
         return None
     return user
 
