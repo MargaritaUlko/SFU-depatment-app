@@ -13,12 +13,12 @@ celery_app = Celery(
 celery_app.conf.beat_schedule = {
     "sync-announcement-statuses": {
         "task": "app.announcements.tasks.sync_announcement_statuses",
-        "schedule": crontab(minute=0, hour="*/5"),  # каждые 5 часов
+        "schedule": crontab(),  # каждую минуту
     },
     "cleanup-archived-announcements": {
         "task": "app.announcements.tasks.cleanup_archived_announcements",
         "schedule": crontab(hour=3, minute=0),  # каждую ночь в 03:00 UTC
     },
 }
-celery_app.conf.timezone = "UTC"
+celery_app.conf.timezone = "Asia/Krasnoyarsk"
 celery_app.conf.enable_utc = True

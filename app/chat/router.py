@@ -22,7 +22,7 @@ from app.chat.crud import (
     save_message,
 )
 from app.chat.manager import manager
-from app.chat.schemas import ChatMessageCreate, ChatMessageRead, ChatRead, GroupChatCreate
+from app.chat.schemas import ChatMessageRead, ChatRead, GroupChatCreate
 from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.users.crud import get_user
@@ -82,29 +82,6 @@ async def list_messages(
     if current_user.role != Role.admin and current_user.id not in {m.user_id for m in chat.members}:
         raise HTTPException(status_code=403, detail="Нет доступа к чату")
     return await get_chat_messages(db, chat_id, limit=limit, offset=offset)
-
-
-@router.post("/{chat_id}/messages", response_model=ChatMessageRead, status_code=status.HTTP_201_CREATED)
-async def send_message(
-    chat_id: int,
-    body: ChatMessageCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    chat = await get_chat(db, chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail="Чат не найден")
-    if current_user.role != Role.admin and current_user.id not in {m.user_id for m in chat.members}:
-        raise HTTPException(status_code=403, detail="Нет доступа к чату")
-    msg = await save_message(db, chat_id, current_user.id, body.body)
-    await manager.broadcast(chat_id, {
-        "id": msg.id,
-        "chat_id": chat_id,
-        "sender_id": current_user.id,
-        "body": body.body,
-        "created_at": msg.created_at.isoformat(),
-    })
-    return msg
 
 
 @router.websocket("/{chat_id}/ws")

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import and_, select, update
@@ -29,14 +30,14 @@ async def get_announcements_(
 
     if filters.group_name:
         filters_list.append(
-            (Announcement.target_group == filters.group_name)
-            | (Announcement.target_group == None)  # noqa: E711
+            ~Announcement.target_groups.any()
+            | Announcement.target_groups.any(Group.name == filters.group_name)
         )
 
     if filters.flow_name:
         filters_list.append(
-            (Announcement.target_flow == filters.flow_name)
-            | (Announcement.target_flow == None)  # noqa: E711
+            ~Announcement.target_streams.any()
+            | Announcement.target_streams.any(Stream.name == filters.flow_name)
         )
 
     if filters_list:
@@ -68,6 +69,7 @@ async def create_announcement_(
         title=data.title,
         content=data.content,
         publish_at=data.publish_at,
+        expires_at=data.expires_at,
         target_groups=groups,
         target_streams=streams,
         author_id=author_id,

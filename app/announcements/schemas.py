@@ -1,7 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_serializer
+
+KRK_TZ = ZoneInfo("Asia/Krasnoyarsk")
 
 from app.announcements.model import AnnouncementStatus
 
@@ -28,8 +31,8 @@ class AttachmentOut(BaseModel):
 class AnnouncementCreate(BaseModel):
     title: str
     content: str
-    publish_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    publish_at: Optional[datetime] = Field(default=None, examples=["2026-06-01T10:00:00+07:00"])
+    expires_at: Optional[datetime] = Field(default=None, examples=["2026-06-08T10:00:00+07:00"])
     target_group_ids: Optional[List[int]] = None
     target_stream_ids: Optional[List[int]] = None
 
@@ -39,8 +42,8 @@ class AnnouncementUpdate(BaseModel):
     content: Optional[str] = None
     target_group_ids: Optional[List[int]] = None
     target_stream_ids: Optional[List[int]] = None
-    publish_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    publish_at: Optional[datetime] = Field(default=None, examples=["2026-06-01T10:00:00+07:00"])
+    expires_at: Optional[datetime] = Field(default=None, examples=["2026-06-08T10:00:00+07:00"])
 
 
 class AnnouncementArchive(BaseModel):
@@ -60,3 +63,11 @@ class AnnouncementOut(BaseModel):
     attachments: List[AttachmentOut] = []
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("publish_at", "expires_at", "created_at")
+    def to_krasnoyarsk(self, v: Optional[datetime]) -> Optional[str]:
+        if v is None:
+            return None
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.astimezone(KRK_TZ).isoformat()

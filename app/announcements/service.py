@@ -82,7 +82,12 @@ async def create_announcement(
     user: User,
 ) -> Announcement:
     if user.role == Role.headman:
-        data.target_group_ids = [user.student_profile.group_id]
+        result = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile:
+            data.target_group_ids = [profile.group_id]
     elif user.role == Role.teacher:
         teacher_groups_ids = await get_groups_by_teacher(db, user.id)
         if data.target_group_ids:
@@ -135,7 +140,7 @@ async def archive_announcement(
     ann_id: int,
     current_user: User,
 ) -> Announcement:
-    ann = await get_announcement(ann_id)
+    ann = await get_announcement(db, ann_id)
     if ann is None:
         return None
     await check_can_archive(ann, current_user)

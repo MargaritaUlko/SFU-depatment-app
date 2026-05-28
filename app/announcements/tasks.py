@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -23,14 +24,17 @@ async def _sync_statuses() -> None:
     engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
     Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(ZoneInfo("Asia/Krasnoyarsk"))
 
     async with Session() as db:
         published = await db.execute(
             update(Announcement)
             .where(
-                Announcement.status == AnnouncementStatus.scheduled,
-                Announcement.publish_at <= now,
+                Announcement.status.in_(
+                    [AnnouncementStatus.draft, AnnouncementStatus.scheduled]
+                ),
+                (Announcement.publish_at == None)  # noqa: E711
+                | (Announcement.publish_at <= now),
             )
             .values(status=AnnouncementStatus.published)
         )

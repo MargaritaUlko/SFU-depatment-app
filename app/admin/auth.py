@@ -1,3 +1,5 @@
+import asyncio
+
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from sqlalchemy import select
@@ -18,7 +20,7 @@ class AdminAuth(AuthenticationBackend):
 
         if not user:
             return False
-        if not verify_password(password, user.hashed_password):
+        if not await asyncio.to_thread(verify_password, password, user.hashed_password):
             return False
         if user.role != Role.admin or not user.is_active:
             return False
