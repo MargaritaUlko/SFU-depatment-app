@@ -13,6 +13,7 @@ from app.dependencies import get_current_user, require_roles
 from app.users.crud import (
     create_user,
     delete_user,
+    get_me_profile,
     get_teachers,
     get_user,
     get_user_by_email,
@@ -26,8 +27,18 @@ from app.users.crud import (
     update_user_password,
 )
 from app.users.model import Role, User
-from app.users.schemas import DeanProfileUpdate, StudentGroupUpdate, StudentProfileUpdate, TeacherProfileUpdate, TeacherPublicRead, UserCreate, UserPasswordChange, UserRead, UserUpdate
-from app.users.service import set_avatar
+from app.users.schemas import (
+    DeanProfileUpdate,
+    StudentGroupUpdate,
+    StudentProfileUpdate,
+    TeacherProfileUpdate,
+    TeacherPublicRead,
+    UserCreate,
+    UserPasswordChange,
+    UserRead,
+    UserUpdate,
+)
+from app.users.service import build_me_response, set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -72,6 +83,15 @@ async def admin_create_user(
             )
 
     return user
+
+
+@router.get("/me")
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile_data = await get_me_profile(db, current_user)
+    return build_me_response(current_user, profile_data)
 
 
 @router.get("/teachers", response_model=List[TeacherPublicRead])

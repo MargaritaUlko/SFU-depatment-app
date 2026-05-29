@@ -3,12 +3,18 @@ from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password, verify_password
 from app.groups.model import Group
 from app.lessons.model import Lesson
 from app.users.model import DeanProfile, Role, StudentProfile, TeacherProfile, User
-from app.users.schemas import DeanProfileUpdate, StudentProfileUpdate, TeacherProfileUpdate, UserCreate
+from app.users.schemas import (
+    DeanProfileUpdate,
+    StudentProfileUpdate,
+    TeacherProfileUpdate,
+    UserCreate,
+)
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -54,7 +60,9 @@ async def get_visible_users(
 
     if current_user.role == Role.teacher:
         taught_groups_subq = (
-            select(Lesson.group_id).where(Lesson.teacher_id == current_user.id).distinct()
+            select(Lesson.group_id)
+            .where(Lesson.teacher_id == current_user.id)
+            .distinct()
         )
         students_subq = select(StudentProfile.user_id).where(
             StudentProfile.group_id.in_(taught_groups_subq)
@@ -93,7 +101,9 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     return user
 
 
-async def create_student_profile(db: AsyncSession, user_id: int, group_id: int) -> StudentProfile:
+async def create_student_profile(
+    db: AsyncSession, user_id: int, group_id: int
+) -> StudentProfile:
     profile = StudentProfile(user_id=user_id, group_id=group_id)
     db.add(profile)
     await db.commit()
@@ -112,8 +122,12 @@ async def get_teachers(db: AsyncSession, skip: int = 0, limit: int = 100):
     return result.all()
 
 
-async def update_student_profile(db: AsyncSession, user: User, data: StudentProfileUpdate) -> None:
-    result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
+async def update_student_profile(
+    db: AsyncSession, user: User, data: StudentProfileUpdate
+) -> None:
+    result = await db.execute(
+        select(StudentProfile).where(StudentProfile.user_id == user.id)
+    )
     profile = result.scalar_one_or_none()
     if profile is None:
         raise ValueError("Профиль не найден. Группа назначается деканатом")
@@ -125,7 +139,9 @@ async def update_student_profile(db: AsyncSession, user: User, data: StudentProf
 
 
 async def update_student_group(db: AsyncSession, user_id: int, group_id: int) -> None:
-    result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
+    result = await db.execute(
+        select(StudentProfile).where(StudentProfile.user_id == user_id)
+    )
     profile = result.scalar_one_or_none()
     if profile is None:
         profile = StudentProfile(user_id=user_id, group_id=group_id)
@@ -135,8 +151,12 @@ async def update_student_group(db: AsyncSession, user_id: int, group_id: int) ->
     await db.commit()
 
 
-async def update_teacher_profile(db: AsyncSession, user: User, data: TeacherProfileUpdate) -> None:
-    result = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
+async def update_teacher_profile(
+    db: AsyncSession, user: User, data: TeacherProfileUpdate
+) -> None:
+    result = await db.execute(
+        select(TeacherProfile).where(TeacherProfile.user_id == user.id)
+    )
     profile = result.scalar_one_or_none()
     if profile is None:
         profile = TeacherProfile(user_id=user.id)
@@ -149,7 +169,9 @@ async def update_teacher_profile(db: AsyncSession, user: User, data: TeacherProf
     await db.commit()
 
 
-async def update_dean_profile(db: AsyncSession, user: User, data: DeanProfileUpdate) -> None:
+async def update_dean_profile(
+    db: AsyncSession, user: User, data: DeanProfileUpdate
+) -> None:
     result = await db.execute(select(DeanProfile).where(DeanProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     if profile is None:
@@ -207,6 +229,52 @@ async def authenticate_user(
     if not is_valid:
         return None
     return user
+
+
+async def get_me_profile(db: AsyncSession, user: User) -> dict:
+    """Возвращает плоский словарь с полями профиля в зависимости от роли."""
+    role = user.role
+
+    if role in (Role.student, Role.headman):
+        result = await db.execute(
+            select(StudentProfile)
+            .options(selectinload(StudentProfile.group))
+            .where(StudentProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        return {
+            "group_id": profile.group_id if profile else None,
+            "group_name": profile.group.name if profile and profile.group else None,
+            "phone": profile.phone if profile else None,
+            "telegram": profile.telegram if profile else None,
+            "vk": profile.vk if profile else None,
+        }
+
+    if role in (Role.teacher, Role.deputy_head):
+        result = await db.execute(
+            select(TeacherProfile).where(TeacherProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        return {
+            "department": profile.department if profile else None,
+            "positions": profile.positions if profile else None,
+            "phone": profile.phone if profile else None,
+            "cabinet": profile.cabinet if profile else None,
+        }
+
+    if role == Role.dean:
+        result = await db.execute(
+            select(DeanProfile).where(DeanProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        return {
+            "faculty": profile.faculty if profile else None,
+            "dean_position": profile.position if profile else None,
+            "phone": profile.phone if profile else None,
+            "cabinet": profile.cabinet if profile else None,
+        }
+
+    return {}
 
 
 async def search_users_by_surname(

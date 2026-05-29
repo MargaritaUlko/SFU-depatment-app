@@ -18,9 +18,10 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.core.email import send_credentials_email, send_password_reset_email
 from app.core.security import generate_password, hash_password
-from app.users.crud import authenticate_user, create_student_profile, create_user, get_user, get_user_by_email
+from app.users.crud import authenticate_user, create_student_profile, create_user, get_user, get_user_by_email, get_me_profile
 from app.users.model import Role, User
 from app.users.schemas import StudentRegister, UserCreate, UserRead
+from app.users.service import build_me_response
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -118,6 +119,10 @@ async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(
         logging.getLogger(__name__).error("Не удалось отправить письмо %s: %s", user.email, exc)
 
 
-@router.get("/me", response_model=UserRead)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+@router.get("/me")
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    profile_data = await get_me_profile(db, current_user)
+    return build_me_response(current_user, profile_data)

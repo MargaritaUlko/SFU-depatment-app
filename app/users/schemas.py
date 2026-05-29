@@ -85,3 +85,64 @@ class DeanProfileUpdate(BaseModel):
 class UserPasswordChange(BaseModel):
     old_password: str
     new_password: str
+
+
+class StudentProfileRead(BaseModel):
+    group_id: int
+    group_name: Optional[str] = None
+    phone: Optional[str] = None
+    telegram: Optional[str] = None
+    vk: Optional[str] = None
+
+
+class TeacherProfileRead(BaseModel):
+    department: Optional[str] = None
+    positions: Optional[List[TeacherPosition]] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
+
+
+class DeanProfileRead(BaseModel):
+    faculty: str
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
+
+
+class _MeBase(BaseModel):
+    id: int
+    name: str
+    surname: str
+    patronymic: Optional[str] = None
+    email: EmailStr
+    role: Role
+    is_active: bool
+    avatar: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class StudentMeResponse(_MeBase):
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
+    phone: Optional[str] = None
+    telegram: Optional[str] = None
+    vk: Optional[str] = None
+
+
+class TeacherMeResponse(_MeBase):
+    department: Optional[str] = None
+    positions: Optional[List[TeacherPosition]] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
+
+
+class DeanMeResponse(_MeBase):
+    faculty: Optional[str] = None
+    dean_position: Optional[str] = None
+    phone: Optional[str] = None
+    cabinet: Optional[str] = None
+
+
+# backward compat alias — оставляем если где-то ещё используется
+MeResponse = DeanMeResponse
