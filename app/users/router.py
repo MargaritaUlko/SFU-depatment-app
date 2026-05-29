@@ -29,6 +29,7 @@ from app.users.crud import (
 from app.users.model import Role, User
 from app.users.schemas import (
     DeanProfileUpdate,
+    MeResponse,
     StudentGroupUpdate,
     StudentProfileUpdate,
     TeacherProfileUpdate,
@@ -38,7 +39,7 @@ from app.users.schemas import (
     UserRead,
     UserUpdate,
 )
-from app.users.service import build_me_response, set_avatar
+from app.users.service import set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -85,13 +86,25 @@ async def admin_create_user(
     return user
 
 
-@router.get("/me")
+@router.get("/me", response_model=MeResponse)
 async def get_me(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     profile_data = await get_me_profile(db, current_user)
-    return build_me_response(current_user, profile_data)
+    return MeResponse(
+        id=current_user.id,
+        name=current_user.name,
+        surname=current_user.surname,
+        patronymic=current_user.patronymic,
+        email=current_user.email,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        avatar=current_user.avatar,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        **profile_data,
+    )
 
 
 @router.get("/teachers", response_model=List[TeacherPublicRead])
@@ -104,17 +117,19 @@ async def list_teachers(
     rows = await get_teachers(db, skip=skip, limit=limit)
     result = []
     for user, profile in rows:
-        result.append(TeacherPublicRead(
-            id=user.id,
-            name=user.name,
-            surname=user.surname,
-            patronymic=user.patronymic,
-            role=user.role,
-            avatar=user.avatar,
-            department=profile.department if profile else None,
-            positions=profile.positions if profile else None,
-            cabinet=profile.cabinet if profile else None,
-        ))
+        result.append(
+            TeacherPublicRead(
+                id=user.id,
+                name=user.name,
+                surname=user.surname,
+                patronymic=user.patronymic,
+                role=user.role,
+                avatar=user.avatar,
+                department=profile.department if profile else None,
+                positions=profile.positions if profile else None,
+                cabinet=profile.cabinet if profile else None,
+            )
+        )
     return result
 
 
@@ -220,11 +235,15 @@ async def update_my_student_profile(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role not in (Role.student, Role.headman):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
+        )
     try:
         await update_student_profile(db, current_user, data)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
 
 
 @router.patch("/me/teacher-profile", status_code=status.HTTP_204_NO_CONTENT)
@@ -234,7 +253,9 @@ async def update_my_teacher_profile(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role not in (Role.teacher, Role.deputy_head):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
+        )
     await update_teacher_profile(db, current_user, data)
 
 
@@ -245,7 +266,9 @@ async def update_my_dean_profile(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role != Role.dean:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
+        )
     await update_dean_profile(db, current_user, data)
 
 
@@ -258,7 +281,9 @@ async def assign_student_group(
 ):
     user = await get_user(db, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
     if user.role not in (Role.student, Role.headman):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

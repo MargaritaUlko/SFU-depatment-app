@@ -52,6 +52,7 @@ async def _parse_and_validate_visibility(raw: str, db: AsyncSession) -> List[str
         )
 
     valid_roles = {r.value for r in Role}
+    normalized: List[str] = []
     for entry in vis_list:
         if ":" not in entry:
             if entry not in valid_roles:
@@ -59,7 +60,10 @@ async def _parse_and_validate_visibility(raw: str, db: AsyncSession) -> List[str
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Неизвестная роль: {entry}",
                 )
-        elif entry.startswith("role:"):
+            normalized.append(f"role:{entry}")
+            continue
+        normalized.append(entry)
+        if entry.startswith("role:"):
             if entry[5:] not in valid_roles:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -98,7 +102,7 @@ async def _parse_and_validate_visibility(raw: str, db: AsyncSession) -> List[str
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Неизвестный формат: {entry}. Используйте role:..., group:..., stream:...",
             )
-    return vis_list
+    return normalized
 
 
 # TODO: переделать
