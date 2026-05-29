@@ -81,7 +81,9 @@ async def sync_lessons(db: AsyncSession) -> dict:
             week = int(entry.get("week", 0))
             time_start, time_end = _parse_time(entry.get("time", ""))
 
-            existing = await db.execute(
+            teacher_name = entry.get("teacher", "") or ""
+
+            existing_result = await db.execute(
                 select(Lesson).where(
                     Lesson.group_id == group.id,
                     Lesson.day == day,
@@ -90,11 +92,15 @@ async def sync_lessons(db: AsyncSession) -> dict:
                     Lesson.subject == subject,
                 )
             )
-            if existing.scalar_one_or_none():
+            existing_lesson = existing_result.scalar_one_or_none()
+            if existing_lesson is not None:
+                if existing_lesson.teacher_id is None and teacher_name:
+                    teacher_id = await _resolve_teacher(db, teacher_name)
+                    if teacher_id is not None:
+                        existing_lesson.teacher_id = teacher_id
                 skipped += 1
                 continue
 
-            teacher_name = entry.get("teacher", "") or ""
             teacher_id = await _resolve_teacher(db, teacher_name)
 
             db.add(Lesson(
