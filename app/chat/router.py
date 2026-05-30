@@ -22,7 +22,7 @@ from app.chat.crud import (
     save_message,
 )
 from app.chat.manager import manager
-from app.chat.schemas import ChatMessageRead, ChatRead, GroupChatCreate
+from app.chat.schemas import ChatMessageCreate, ChatMessageRead, ChatRead, GroupChatCreate
 from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.users.crud import get_user
@@ -66,6 +66,21 @@ async def create_group_chat_route(
     if current_user.id not in body.member_ids:
         body.member_ids.append(current_user.id)
     return await create_group_chat(db, body.group_id, body.member_ids)
+
+
+@router.post("/{chat_id}/messages", response_model=ChatMessageRead, status_code=status.HTTP_201_CREATED)
+async def send_message(
+    chat_id: int,
+    body: ChatMessageCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    chat = await get_chat(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    if current_user.role != Role.admin and current_user.id not in {m.user_id for m in chat.members}:
+        raise HTTPException(status_code=403, detail="Нет доступа к чату")
+    return await save_message(db, chat_id, current_user.id, body.body)
 
 
 @router.get("/{chat_id}/messages", response_model=List[ChatMessageRead])

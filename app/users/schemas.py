@@ -142,7 +142,3 @@ class DeanMeResponse(_MeBase):
     dean_position: Optional[str] = None
     phone: Optional[str] = None
     cabinet: Optional[str] = None
-
-
-# backward compat alias — оставляем если где-то ещё используется
-MeResponse = DeanMeResponse

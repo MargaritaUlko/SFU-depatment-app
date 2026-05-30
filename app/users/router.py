@@ -29,7 +29,6 @@ from app.users.crud import (
 from app.users.model import Role, User
 from app.users.schemas import (
     DeanProfileUpdate,
-    MeResponse,
     StudentGroupUpdate,
     StudentProfileUpdate,
     TeacherProfileUpdate,
@@ -39,7 +38,7 @@ from app.users.schemas import (
     UserRead,
     UserUpdate,
 )
-from app.users.service import set_avatar
+from app.users.service import build_me_response, set_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -86,25 +85,13 @@ async def admin_create_user(
     return user
 
 
-@router.get("/me", response_model=MeResponse)
+@router.get("/me")
 async def get_me(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     profile_data = await get_me_profile(db, current_user)
-    return MeResponse(
-        id=current_user.id,
-        name=current_user.name,
-        surname=current_user.surname,
-        patronymic=current_user.patronymic,
-        email=current_user.email,
-        role=current_user.role,
-        is_active=current_user.is_active,
-        avatar=current_user.avatar,
-        created_at=current_user.created_at,
-        updated_at=current_user.updated_at,
-        **profile_data,
-    )
+    return build_me_response(current_user, profile_data)
 
 
 @router.get("/teachers", response_model=List[TeacherPublicRead])
@@ -228,7 +215,7 @@ async def get_avatar(
     return FileResponse(path=user.avatar, media_type=media_type)
 
 
-@router.patch("/me/student-profile", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/student-profile")
 async def update_my_student_profile(
     data: StudentProfileUpdate,
     db: AsyncSession = Depends(get_db),
@@ -244,9 +231,11 @@ async def update_my_student_profile(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
         )
+    profile_data = await get_me_profile(db, current_user)
+    return build_me_response(current_user, profile_data)
 
 
-@router.patch("/me/teacher-profile", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/teacher-profile")
 async def update_my_teacher_profile(
     data: TeacherProfileUpdate,
     db: AsyncSession = Depends(get_db),
@@ -257,9 +246,11 @@ async def update_my_teacher_profile(
             status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
         )
     await update_teacher_profile(db, current_user, data)
+    profile_data = await get_me_profile(db, current_user)
+    return build_me_response(current_user, profile_data)
 
 
-@router.patch("/me/dean-profile", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/dean-profile")
 async def update_my_dean_profile(
     data: DeanProfileUpdate,
     db: AsyncSession = Depends(get_db),
@@ -270,6 +261,8 @@ async def update_my_dean_profile(
             status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав"
         )
     await update_dean_profile(db, current_user, data)
+    profile_data = await get_me_profile(db, current_user)
+    return build_me_response(current_user, profile_data)
 
 
 @router.patch("/{user_id}/group", status_code=status.HTTP_204_NO_CONTENT)

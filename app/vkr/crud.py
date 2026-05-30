@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -64,6 +64,18 @@ async def get_all_topics(
         stmt = stmt.where(VKRTopic.status == status)
     result = await db.execute(_with_relations(stmt))
     return list(result.scalars().all())
+
+
+async def delete_topics(
+    db: AsyncSession,
+    ids: Optional[List[int]] = None,
+) -> int:
+    stmt = delete(VKRTopic)
+    if ids:
+        stmt = stmt.where(VKRTopic.id.in_(ids))
+    result = await db.execute(stmt)
+    await db.commit()
+    return result.rowcount
 
 
 async def review_topic(

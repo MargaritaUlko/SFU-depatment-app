@@ -25,7 +25,7 @@ async def test_teacher_uploads_document(client: AsyncClient, db: AsyncSession):
     assert resp.status_code == 201
     data = resp.json()
     assert data["title"] == "Лекция 1"
-    assert "student" in data["visibility"]
+    assert "role:student" in data["visibility"]
 
 
 async def test_student_cannot_upload_document(client: AsyncClient, db: AsyncSession):
