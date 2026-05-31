@@ -7,14 +7,13 @@ set -e
 echo "=== Установка системных зависимостей для сборки ==="
 if command -v apt-get &>/dev/null; then
     sudo apt-get update -qq
-    sudo apt-get install -y build-essential python3-dev libpq-dev
-elif command -v dnf &>/dev/null; then
-    sudo dnf install -y gcc gcc-c++ make python3-devel postgresql-devel
-elif command -v yum &>/dev/null; then
-    sudo yum install -y gcc gcc-c++ make python3-devel postgresql-devel
+    sudo apt-get install -y build-essential python3-dev
 else
-    echo "Неизвестный пакетный менеджер, установите вручную: gcc, python3-devel, postgresql-devel"
-    exit 1
+    echo "apt-get не найден, проверяем наличие gcc..."
+    if ! command -v gcc &>/dev/null; then
+        echo "ОШИБКА: установите gcc и python3-dev вручную через пакетный менеджер вашего дистрибутива"
+        exit 1
+    fi
 fi
 echo "Системные зависимости установлены."
 
