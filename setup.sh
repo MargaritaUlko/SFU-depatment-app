@@ -4,6 +4,12 @@
 
 set -e
 
+echo "=== Установка системных зависимостей для сборки ==="
+sudo apt-get update -qq
+sudo apt-get install -y build-essential python3-dev libpq-dev
+echo "Системные зависимости установлены."
+
+echo ""
 echo "=== Создание виртуального окружения ==="
 if [ ! -d "venv" ]; then
     python3 -m venv venv
