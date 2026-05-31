@@ -20,8 +20,14 @@ fi
 
 echo ""
 echo "=== Установка зависимостей ==="
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt
+if [ -d "./wheels" ]; then
+    echo "Найдена папка wheels — установка офлайн"
+    venv/bin/pip install --no-index --find-links=./wheels/ -r requirements.txt
+else
+    echo "Установка из PyPI (нужен интернет)"
+    venv/bin/pip install --upgrade pip --timeout 120
+    venv/bin/pip install -r requirements.txt --timeout 120
+fi
 
 echo ""
 echo "=== Создание папок для файлов ==="
