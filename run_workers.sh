@@ -2,8 +2,15 @@
 # Запуск Celery worker + beat (требует Redis)
 # chmod +x run_workers.sh && ./run_workers.sh
 
-if [ ! -d "venv" ]; then
-    echo "venv не найден. Запустите сначала: ./setup.sh"
+set -e
+
+if [ ! -f "venv/bin/celery" ]; then
+    echo "ОШИБКА: celery не установлен. Запустите: ./setup.sh"
+    exit 1
+fi
+
+if [ ! -f ".env" ]; then
+    echo "ОШИБКА: файл .env не найден. Скопируйте: cp .env.example .env"
     exit 1
 fi
 

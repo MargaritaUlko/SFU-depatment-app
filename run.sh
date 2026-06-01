@@ -1,11 +1,16 @@
 #!/bin/bash
-# Запуск API на сервере без Docker
+# Запуск API на сервере
 # chmod +x run.sh && ./run.sh
 
 set -e
 
-if [ ! -d "venv" ]; then
-    echo "venv не найден. Запустите сначала: ./setup.sh"
+if [ ! -f "venv/bin/uvicorn" ]; then
+    echo "ОШИБКА: зависимости не установлены. Запустите: ./setup.sh"
+    exit 1
+fi
+
+if [ ! -f ".env" ]; then
+    echo "ОШИБКА: файл .env не найден. Скопируйте: cp .env.example .env"
     exit 1
 fi
 
