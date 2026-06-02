@@ -1,6 +1,6 @@
 #!/bin/bash
 # Запуск Redis + Celery worker + beat
-# chmod +x /home/mulko/SFU-depatment-app/venv/bin/celery &&  ./run_workers.sh
+# chmod +x run_workers.sh && ./run_workers.sh
 
 set -e
 
@@ -15,11 +15,12 @@ if [ ! -f ".env" ]; then
 fi
 
 echo "Запуск Redis..."
-if command -v redis-server &>/dev/null; then
-    redis-server --daemonize yes
+REDIS_BIN=$(command -v redis-server || echo /usr/sbin/redis-server)
+if [ -x "$REDIS_BIN" ]; then
+    $REDIS_BIN --daemonize yes
     echo "Redis запущен."
 else
-    echo "ОШИБКА: redis-server не найден. Установите: sudo dnf install redis  (или apt install redis)"
+    echo "ОШИБКА: redis-server не найден. Установите: sudo apt-get install redis"
     exit 1
 fi
 
