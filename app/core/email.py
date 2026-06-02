@@ -1,6 +1,7 @@
 import logging
+from email.mime.text import MIMEText
 
-import httpx
+import aiosmtplib
 
 from app.core.config import settings
 
@@ -8,18 +9,22 @@ logger = logging.getLogger(__name__)
 
 
 async def _send_email(to: str, subject: str, body: str) -> None:
-    if not settings.RESEND_API_KEY:
-        logger.warning("RESEND_API_KEY не настроен — письмо не отправлено (%s)", to)
+    if not settings.SMTP_HOST:
+        logger.warning("SMTP_HOST не настроен — письмо не отправлено (%s)", to)
         return
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={"from": settings.SMTP_FROM, "to": [to], "subject": subject, "text": body},
-            timeout=10,
-        )
-        logger.info("Resend response %s: %s", response.status_code, response.text)
-        response.raise_for_status()
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = settings.SMTP_FROM
+    msg["To"] = to
+    await aiosmtplib.send(
+        msg,
+        hostname=settings.SMTP_HOST,
+        port=settings.SMTP_PORT,
+        username=settings.SMTP_USER,
+        password=settings.SMTP_PASSWORD,
+        start_tls=True,
+    )
+    logger.info("Письмо отправлено: %s → %s", settings.SMTP_FROM, to)
 
 
 async def send_credentials_email(to: str, full_name: str, password: str) -> None:
