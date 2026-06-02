@@ -1,6 +1,6 @@
 #!/bin/bash
-# Запуск Celery worker + beat (требует Redis)
-# chmod +x run_workers.sh && ./run_workers.sh
+# Запуск Redis + Celery worker + beat
+# chmod +x /home/mulko/SFU-depatment-app/venv/bin/celery &&  ./run_workers.sh
 
 set -e
 
@@ -11,6 +11,15 @@ fi
 
 if [ ! -f ".env" ]; then
     echo "ОШИБКА: файл .env не найден. Скопируйте: cp .env.example .env"
+    exit 1
+fi
+
+echo "Запуск Redis..."
+if command -v redis-server &>/dev/null; then
+    redis-server --daemonize yes
+    echo "Redis запущен."
+else
+    echo "ОШИБКА: redis-server не найден. Установите: sudo dnf install redis  (или apt install redis)"
     exit 1
 fi
 
