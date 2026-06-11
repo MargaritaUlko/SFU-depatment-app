@@ -94,7 +94,7 @@ async def list_messages(
     chat = await get_chat(db, chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Чат не найден")
-    if current_user.role != Role.admin and current_user.id not in {m.user_id for m in chat.members}:
+    if current_user.id not in {m.user_id for m in chat.members}:
         raise HTTPException(status_code=403, detail="Нет доступа к чату")
     return await get_chat_messages(db, chat_id, limit=limit, offset=offset)
 

@@ -61,7 +61,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -85,10 +85,18 @@ admin.add_view(ChatMessageAdmin)
 admin.add_view(EventAdmin)
 admin.add_view(DocumentAdmin)
 
+# Публично отдаём только аватарки и картинки мероприятий.
+# documents/ намеренно НЕ маунтится сюда: доступ к документам идёт только
+# через /api/v1/documents/{id}/download с проверкой visibility.
 app.mount(
-    "/uploads",
-    StaticFiles(directory=settings.UPLOAD_DIR, check_dir=False),
-    name="uploads",
+    "/uploads/avatars",
+    StaticFiles(directory=os.path.join(settings.UPLOAD_DIR, "avatars"), check_dir=False),
+    name="avatars",
+)
+app.mount(
+    "/uploads/events",
+    StaticFiles(directory=os.path.join(settings.UPLOAD_DIR, "events"), check_dir=False),
+    name="events",
 )
 
 PREFIX = "/api/v1"
