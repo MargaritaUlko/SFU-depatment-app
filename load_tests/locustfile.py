@@ -22,6 +22,13 @@
 
 Headless (из конфига):
     locust -f load_tests/locustfile.py --config load_tests/locust.conf --headless
+
+Отдельный сценарий "конец пары" (всплеск отметок посещаемости),
+запускается ОТДЕЛЬНО от основного теста — другой профиль нагрузки
+(короткий всплеск, а не устойчивый RPS):
+    locust -f load_tests/locustfile.py AttendanceBurstUser \
+        --host http://localhost:8000 \
+        --users 30 --spawn-rate 30 --run-time 30s --headless
 """
 
 import io
@@ -117,9 +124,17 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 PREFIX = os.getenv("PREFIX", "/api/v1")
 
+# id занятия (lessons.id) для сценария AttendanceBurstUser
+ATTENDANCE_LESSON_ID = os.getenv("ATTENDANCE_LESSON_ID", "1")
+
 # Общий пул ID загруженных документов: TeacherUser заполняет, DocHeavyUser читает
 _doc_ids: list[int] = []
 _doc_ids_lock = Lock()
+
+# QR-токен для сценария "конец пары": создаётся один раз первым стартовавшим
+# виртуальным пользователем, остальные сканируют тот же токен.
+_attendance_token: str | None = None
+_attendance_token_lock = Lock()
 
 
 # ── Утилиты ───────────────────────────────────────────────────────────────────
@@ -410,6 +425,82 @@ class AdminUser(HttpUser):
     weight = 3
     wait_time = between(20, 60)
     tasks = [AdminTasks]
+
+
+class AttendanceBurstUser(HttpUser):
+    """
+    Сценарий "конец пары": студенты почти одновременно сканируют QR-код
+    отметки посещаемости. Один виртуальный пользователь = одна отметка,
+    после чего юзер сразу останавливается (StopUser) — в реальности
+    студент сканирует один раз, а не в цикле.
+
+    В тестовых данных есть только ОДИН студент (STUDENT_EMAIL), поэтому все
+    виртуальные пользователи сканируют от его имени:
+      - 1-й скан  -> 201 (отметка создана)
+      - 2-10-й    -> 409 (уже отмечено, UniqueConstraint lesson_id+student_id)
+      - 11+       -> 429 (rate limit qr_scan: 10 запросов / 60 сек)
+    Все три исхода считаются успехом — в реальности это были бы разные
+    student_id без конфликтов и общего rate-limit, но нагрузка на
+    БД/Redis от самого эндпоинта сопоставима.
+
+    Требует существующего занятия с id=ATTENDANCE_LESSON_ID (lessons.id) —
+    токен для него создаёт TEACHER_EMAIL через POST /attendance/token/{id}.
+
+    abstract=True: класс не участвует в обычном прогоне (--config locust.conf),
+    запускается только явным указанием имени класса в command line.
+    """
+
+    abstract = True
+    wait_time = between(0, 1)
+
+    def on_start(self):
+        global _attendance_token
+
+        token = _login(self.client, STUDENT_EMAIL, STUDENT_PASSWORD)
+        if not token:
+            raise StopUser()
+
+        with _attendance_token_lock:
+            if _attendance_token is None:
+                _attendance_token = self._create_qr_token()
+            qr_token = _attendance_token
+
+        if not qr_token:
+            raise StopUser()
+
+        with self.client.post(
+            f"{PREFIX}/attendance/scan/{qr_token}",
+            headers=_hdrs(token),
+            catch_response=True,
+            name="POST /attendance/scan [burst]",
+        ) as resp:
+            if resp.status_code in (200, 201, 409, 429):
+                resp.success()
+            else:
+                resp.failure(f"[{resp.status_code}] {resp.text[:200]}")
+
+        raise StopUser()
+
+    def _create_qr_token(self) -> str | None:
+        teacher_token = _login(self.client, TEACHER_EMAIL, TEACHER_PASSWORD)
+        if not teacher_token:
+            return None
+
+        with self.client.post(
+            f"{PREFIX}/attendance/token/{ATTENDANCE_LESSON_ID}",
+            headers=_hdrs(teacher_token),
+            catch_response=True,
+            name="POST /attendance/token [burst setup]",
+        ) as resp:
+            if resp.status_code == 201:
+                resp.success()
+                return resp.json().get("token")
+            resp.failure(f"[{resp.status_code}] {resp.text[:200]}")
+            return None
+
+    @task
+    def noop(self):
+        pass
 
 
 # ── Хук завершения: вердикт по S3 ────────────────────────────────────────────

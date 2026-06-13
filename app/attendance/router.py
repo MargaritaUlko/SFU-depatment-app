@@ -15,6 +15,7 @@ from app.attendance.service import (
     scan_qr,
     student_attendance,
 )
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.dependencies import get_current_user, require_roles
 from app.users.model import Role
@@ -51,6 +52,12 @@ async def scan_qr_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_roles(Role.student, Role.headman)),
 ):
+    await enforce_rate_limit(
+        f"qr_scan:{current_user.id}",
+        limit=10,
+        window_seconds=60,
+        message="Слишком много попыток сканирования. Подождите немного.",
+    )
     return await scan_qr(db, token, current_user.id)
 
 

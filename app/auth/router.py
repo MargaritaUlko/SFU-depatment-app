@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,13 @@ from app.auth.service import (
 from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.core.email import send_credentials_email, send_password_reset_email
+from app.core.rate_limit import (
+    client_ip,
+    enforce_rate_limit,
+    is_login_locked,
+    register_failed_login,
+    reset_failed_login,
+)
 from app.core.security import generate_password, hash_password
 from app.users.crud import authenticate_user, create_student_profile, create_user, get_user, get_user_by_email
 from app.users.model import Role, User
@@ -25,7 +32,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(data: StudentRegister, db: AsyncSession = Depends(get_db)):
+async def register(request: Request, data: StudentRegister, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(
+        f"register_ip:{client_ip(request)}",
+        limit=10,
+        window_seconds=3600,
+        message="Слишком много регистраций с этого адреса. Попробуйте позже.",
+    )
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(
@@ -46,10 +59,25 @@ async def register(data: StudentRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    request: Request,
     data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ):
+    await enforce_rate_limit(
+        f"login_ip:{client_ip(request)}",
+        limit=20,
+        window_seconds=60,
+        message="Слишком много попыток входа с этого адреса. Попробуйте позже.",
+    )
+
+    if await is_login_locked(data.username):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Аккаунт временно заблокирован из-за множества неудачных попыток входа. Попробуйте через 15 минут.",
+        )
+
     user = await authenticate_user(db, data.username, data.password)
     if not user:
+        await register_failed_login(data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"
         )
@@ -57,6 +85,8 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Аккаунт деактивирован"
         )
+
+    await reset_failed_login(data.username)
 
     access_token = create_access_token(str(user.id), user.role.value)
     refresh_token, jti, expires_at = create_refresh_token_value(str(user.id))
@@ -102,7 +132,19 @@ async def logout(data: LogoutRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
-async def reset_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+async def reset_password(request: Request, data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(
+        f"reset_ip:{client_ip(request)}",
+        limit=10,
+        window_seconds=3600,
+        message="Слишком много запросов на сброс пароля. Попробуйте позже.",
+    )
+    await enforce_rate_limit(
+        f"reset_email:{data.email.strip().lower()}",
+        limit=3,
+        window_seconds=3600,
+        message="Слишком много запросов на сброс пароля для этого email. Попробуйте позже.",
+    )
     user = await get_user_by_email(db, data.email)
     if not user:
         return
